@@ -28,9 +28,9 @@ class Chatbot:
         )
 
     def _get_safety_settings(self):
-        categories = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
-                      "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]
-        return [{"category": cat, "threshold": "BLOCK_NONE"} for cat in categories]
+        return [{"category": cat, "threshold": "BLOCK_NONE"} for cat in
+                ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                 "HARM_CATEGORY_DANGEROUS_CONTENT"]]
 
     def _get_model(self):
         genai.configure(api_key=self.api_key)
