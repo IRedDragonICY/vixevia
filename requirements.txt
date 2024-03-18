@@ -1,4 +1,5 @@
 google-generativeai
 SpeechRecognition
-PyAudio
+gTTS
+pygame
 setuptools

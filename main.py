@@ -1,8 +1,10 @@
 import google.generativeai as genai
 import pickle
 import os
+import pygame
 from google.generativeai.types import generation_types
 import speech_recognition as sr
+from gtts import gTTS
 
 
 class Chatbot:
@@ -52,6 +54,10 @@ class Chatbot:
     def user_input(self):
         return input("User: ")
 
+    def save_convo(self):
+        with open('session.pkl', 'wb') as f:
+            return pickle.dump(self.convo.history, f)
+
     def user_input_speech(self):
         r = sr.Recognizer()
         with sr.Microphone() as source:
@@ -65,17 +71,30 @@ class Chatbot:
             except sr.UnknownValueError:
                 return "..."
 
+    def play_audio(self, file_path):
+        pygame.mixer.init()
+
+        pygame.mixer.music.load(file_path)
+
+        pygame.mixer.music.play()
+
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+
     def start_chat(self):
         while True:
             user_input = self.user_input_speech()
             print("User: " + user_input)
             print("Vixevia: ", end="")
+            response = ""
             for chunk in self.convo.send_message(user_input, stream=True):
-                print(chunk.text, end="")
+                response += chunk.text
+            print(response)
+            gTTS(text=response, lang='id').save("response.mp3")
+            self.play_audio("response.mp3")
             print()
 
-            with open('session.pkl', 'wb') as f:
-                pickle.dump(self.convo.history, f)
+            self.save_convo()
 
 
 if __name__ == "__main__":
