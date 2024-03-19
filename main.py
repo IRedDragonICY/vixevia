@@ -1,99 +1,108 @@
 import google.generativeai as genai
 import pickle
-import os
-import pygame
+import simpleaudio as sa
 from google.generativeai.types import generation_types
 import speech_recognition as sr
 from gtts import gTTS
-
+from pathlib import Path
+from so_vits_svc_fork.inference.main import infer
 
 class Chatbot:
+    MODEL_NAME = "gemini-1.0-pro-001"
+    HARM_CATEGORIES = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]
+    BLOCK_NONE = "BLOCK_NONE"
+    MAX_OUTPUT_TOKENS = 999999999
+    TOP_K = 1
+    TOP_P = 1
+    TEMPERATURE = 0.7
+
     def __init__(self):
-        self.api_key = self._get_api_key()
-        self.generation_config = self._get_generation_config()
-        self.safety_settings = self._get_safety_settings()
-        self.model = self._get_model()
-        self.convo = self._get_convo()
-        self.system_prompt = self._get_system_prompt()
+        self.api_key = self.load_from_file('api_key.txt')
+        self.system_prompt = self.load_from_file('system_prompt.txt')
+        self.generation_config, self.safety_settings = self.model_config()
+        self.model = self.get_model()
+        self.convo = self.get_convo()
         self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
 
-    def _get_api_key(self):
-        with open('api_key.txt', 'r') as f:
+    def load_from_file(self, filename):
+        with open(filename, 'r') as f:
             return f.read().splitlines()[0]
 
-    def _get_generation_config(self):
-        return generation_types.GenerationConfig(
-            temperature=0.7,
-            top_p=1,
-            top_k=1,
-            max_output_tokens=999999999,
+    def model_config(self):
+        generation_config = generation_types.GenerationConfig(
+            temperature=self.TEMPERATURE,
+            top_p=self.TOP_P,
+            top_k=self.TOP_K,
+            max_output_tokens=self.MAX_OUTPUT_TOKENS,
         )
+        safety_settings = [{"category": cat, "threshold": self.BLOCK_NONE} for cat in self.HARM_CATEGORIES]
+        return generation_config, safety_settings
 
-    def _get_safety_settings(self):
-        return [{"category": cat, "threshold": "BLOCK_NONE"} for cat in
-                ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                 "HARM_CATEGORY_DANGEROUS_CONTENT"]]
-
-    def _get_model(self):
+    def get_model(self):
         genai.configure(api_key=self.api_key)
-        return genai.GenerativeModel(model_name="gemini-1.0-pro-001",
+        return genai.GenerativeModel(model_name=self.MODEL_NAME,
                                      generation_config=self.generation_config,
                                      safety_settings=self.safety_settings)
 
-    def _get_convo(self):
-        try:
-            history = pickle.load(open('session.pkl', 'rb')) if os.path.exists('session.pkl') else []
-        except EOFError:
-            history = []
+    def get_convo(self):
+        history = []
+        if Path('session.pkl').exists():
+            with open('session.pkl', 'rb') as f:
+                try:
+                    history = pickle.load(f)
+                except EOFError:
+                    pass
         return self.model.start_chat(history=history)
-
-    def _get_system_prompt(self):
-        with open('system_prompt.txt', 'r') as f:
-            return f.read()
 
     def user_input(self):
         return input("User: ")
 
     def save_convo(self):
         with open('session.pkl', 'wb') as f:
-            return pickle.dump(self.convo.history, f)
+            pickle.dump(self.convo.history, f)
 
     def user_input_speech(self):
         r = sr.Recognizer()
         with sr.Microphone() as source:
-            print("Listening...")
             r.adjust_for_ambient_noise(source)
-            r.dynamic_energy_threshold = True
+            r.energy_threshold = 40000
+            print("Listening...")
             audio = r.listen(source)
             try:
-                text = r.recognize_google(audio, language='id-ID')
-                return text
+                print("Processing...")
+                return r.recognize_google(audio, language='id-ID')
             except sr.UnknownValueError:
                 return "..."
 
     def play_audio(self, file_path):
-        pygame.mixer.init()
-
-        pygame.mixer.music.load(file_path)
-
-        pygame.mixer.music.play()
-
-        while pygame.mixer.music.get_busy():
-            pygame.time.Clock().tick(10)
+        wave_obj = sa.WaveObject.from_wave_file(file_path)
+        play_obj = wave_obj.play()
+        play_obj.wait_done()
 
     def start_chat(self):
         while True:
             user_input = self.user_input_speech()
-            print("User: " + user_input)
-            print("Vixevia: ", end="")
-            response = ""
-            for chunk in self.convo.send_message(user_input, stream=True):
-                response += chunk.text
-            print(response)
-            gTTS(text=response, lang='id').save("response.mp3")
-            self.play_audio("response.mp3")
-            print()
+            print(f"User: {user_input}")
+            response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
+            Path("response.mp3").unlink(missing_ok=True)
+            gTTS(text=response, lang='id').save("temp/response.mp3")
+            model_path = Path("model/audio/audio.pth")
+            config_path = Path("model/audio/audio.json")
+            output_path = Path("temp/response.wav")
+            input_path = Path("temp/response.mp3")
+            max_chunk_seconds = 95
+            device = "cuda"
+            infer(
+                input_path=input_path,
+                output_path=output_path,
+                model_path=model_path,
+                config_path=config_path,
+                max_chunk_seconds=max_chunk_seconds,
+                device=device,
+                speaker="",
+            )
 
+            self.play_audio("temp/response.wav")
             self.save_convo()
 
 
