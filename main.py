@@ -1,3 +1,5 @@
+from datetime import datetime
+import re
 import google.generativeai as genai
 import pickle
 import simpleaudio as sa
@@ -7,28 +9,45 @@ from gtts import gTTS
 from pathlib import Path
 from so_vits_svc_fork.inference.main import infer
 
+
 class Chatbot:
     MODEL_NAME = "gemini-1.0-pro-001"
-    HARM_CATEGORIES = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]
+    HARM_CATEGORIES = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                       "HARM_CATEGORY_DANGEROUS_CONTENT"]
     BLOCK_NONE = "BLOCK_NONE"
     MAX_OUTPUT_TOKENS = 999999999
     TOP_K = 1
     TOP_P = 1
     TEMPERATURE = 0.7
+    API_KEY_FILE = 'api_key.txt'
+    SYSTEM_PROMPT_FILE = 'system_prompt.txt'
+    SESSION_FILE = 'session.pkl'
+    RESPONSE_MP3 = "temp/response.mp3"
+    RESPONSE_WAV = "temp/response.wav"
+    MODEL_PATH = "model/audio/audio.pth"
+    CONFIG_PATH = "model/audio/audio.json"
+    MAX_CHUNK_SECONDS = 95
+    DEVICE = "cuda"
 
     def __init__(self):
-        self.api_key = self.load_from_file('api_key.txt')
-        self.system_prompt = self.load_from_file('system_prompt.txt')
-        self.generation_config, self.safety_settings = self.model_config()
-        self.model = self.get_model()
-        self.convo = self.get_convo()
-        self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
+        """Initialize the chatbot."""
+        self.api_keys = self._load_from_file(self.API_KEY_FILE)
+        self.api_key_index = 0
+        self.system_prompt = self._load_from_file(self.SYSTEM_PROMPT_FILE)
+        self.generation_config, self.safety_settings = self._model_config()
+        self.model = self._get_model()
+        self.convo = self._get_convo()
+        if not self.convo.history:
+            self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
 
-    def load_from_file(self, filename):
+    def _load_from_file(self, filename):
         with open(filename, 'r') as f:
-            return f.read().splitlines()[0]
+            if filename == self.API_KEY_FILE:
+                return f.read().splitlines()
+            else:
+                return '\n'.join(f.read().splitlines())
 
-    def model_config(self):
+    def _model_config(self):
         generation_config = generation_types.GenerationConfig(
             temperature=self.TEMPERATURE,
             top_p=self.TOP_P,
@@ -38,72 +57,67 @@ class Chatbot:
         safety_settings = [{"category": cat, "threshold": self.BLOCK_NONE} for cat in self.HARM_CATEGORIES]
         return generation_config, safety_settings
 
-    def get_model(self):
-        genai.configure(api_key=self.api_key)
+    def _get_model(self):
+        genai.configure(api_key=self.api_keys[self.api_key_index])
+        self.api_key_index = (self.api_key_index + 1) % len(self.api_keys)
         return genai.GenerativeModel(model_name=self.MODEL_NAME,
                                      generation_config=self.generation_config,
                                      safety_settings=self.safety_settings)
 
-    def get_convo(self):
+    def _get_convo(self):
         history = []
-        if Path('session.pkl').exists():
-            with open('session.pkl', 'rb') as f:
+        if Path(self.SESSION_FILE).exists():
+            with open(self.SESSION_FILE, 'rb') as f:
                 try:
                     history = pickle.load(f)
                 except EOFError:
                     pass
         return self.model.start_chat(history=history)
 
-    def user_input(self):
+    def _user_input(self):
         return input("User: ")
 
-    def save_convo(self):
-        with open('session.pkl', 'wb') as f:
+    def _save_convo(self):
+        with open(self.SESSION_FILE, 'wb') as f:
             pickle.dump(self.convo.history, f)
 
-    def user_input_speech(self):
+    def _user_input_speech(self):
         r = sr.Recognizer()
         with sr.Microphone() as source:
             r.adjust_for_ambient_noise(source)
-            r.energy_threshold = 40000
+            r.energy_threshold = 80000
             print("Listening...")
-            audio = r.listen(source)
+            audio = r.listen(source, timeout=5)
             try:
                 print("Processing...")
                 return r.recognize_google(audio, language='id-ID')
             except sr.UnknownValueError:
-                return "..."
+                return " "
 
-    def play_audio(self, file_path):
-        wave_obj = sa.WaveObject.from_wave_file(file_path)
-        play_obj = wave_obj.play()
-        play_obj.wait_done()
+    def _play_audio(self, file_path):
+        sa.WaveObject.from_wave_file(file_path).play().wait_done()
 
     def start_chat(self):
         while True:
-            user_input = self.user_input_speech()
+            user_input = self._user_input_speech()
+            user_input += f"\nTime:({datetime.now().strftime('%H:%M:%S')})"
             print(f"User: {user_input}")
             response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
-            Path("response.mp3").unlink(missing_ok=True)
-            gTTS(text=response, lang='id').save("temp/response.mp3")
-            model_path = Path("model/audio/audio.pth")
-            config_path = Path("model/audio/audio.json")
-            output_path = Path("temp/response.wav")
-            input_path = Path("temp/response.mp3")
-            max_chunk_seconds = 95
-            device = "cuda"
+            response = re.sub(r'\(.*?\)', '', response)
+            Path(self.RESPONSE_MP3).unlink(missing_ok=True)
+            gTTS(text=response, lang='id').save(self.RESPONSE_MP3)
             infer(
-                input_path=input_path,
-                output_path=output_path,
-                model_path=model_path,
-                config_path=config_path,
-                max_chunk_seconds=max_chunk_seconds,
-                device=device,
+                input_path=Path(self.RESPONSE_MP3),
+                output_path=Path(self.RESPONSE_WAV),
+                model_path=Path(self.MODEL_PATH),
+                config_path=Path(self.CONFIG_PATH),
+                max_chunk_seconds=self.MAX_CHUNK_SECONDS,
+                device=self.DEVICE,
                 speaker="",
             )
 
-            self.play_audio("temp/response.wav")
-            self.save_convo()
+            self._play_audio(self.RESPONSE_WAV)
+            self._save_convo()
 
 
 if __name__ == "__main__":
