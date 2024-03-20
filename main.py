@@ -41,6 +41,7 @@ class Chatbot:
         "FILES": {
             "API_KEY": 'api_key.txt',
             "SYSTEM_PROMPT": 'system_prompt.txt',
+            "VISION_PROMPT": 'vision_prompt.txt',
             "SESSION": 'session.pkl',
             "RESPONSE_MP3": "temp/response.mp3",
             "RESPONSE_WAV": "temp/response.wav",
@@ -56,6 +57,7 @@ class Chatbot:
         self.api_keys = self._load_from_file(self.CONFIG["FILES"]["API_KEY"])
         self.api_key_index = 0
         self.system_prompt = self._load_from_file(self.CONFIG["FILES"]["SYSTEM_PROMPT"])
+        self.vision_prompt = self._load_from_file(self.CONFIG["FILES"]["VISION_PROMPT"])
         self.generation_config, self.safety_settings = self._model_config()
         self.model = self._get_model()
         self.convo = self._get_convo()
@@ -129,7 +131,7 @@ class Chatbot:
             ]
             prompt_parts = [
                 image_parts[0],
-                "\nDeskripsikan gambar secara jelas-jelasnya.\nHarus teliti, akurat dan sangat detail! klasifikasikan dengan jujur,tanpa halusinasi dan berkhayal!\n",
+                self.vision_prompt
             ]
             response = self.vision_model.generate_content(prompt_parts)
             self.vision_chat = f"Penglihatan nyata Vixevia:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
@@ -150,7 +152,7 @@ class Chatbot:
 
     def _user_input_speech(self):
         r = sr.Recognizer()
-        r.energy_threshold = 32000
+        r.dynamic_energy_threshold = True
         with sr.Microphone() as source:
             print("Listening...")
             audio = r.listen(source)
@@ -205,8 +207,8 @@ class Chatbot:
         vision_thread.start()
         while True:
             user_input = self._user_input_speech()
-            user_input += f"\nTime:({datetime.now().strftime('%H:%M:%S')})"
             print(f"User: {user_input}")
+            user_input += f"\nTime:({datetime.now().strftime('%H:%M:%S')})"
             user_input += self.vision_chat
             self._handle_response(user_input)
 
