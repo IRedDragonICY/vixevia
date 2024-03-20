@@ -33,7 +33,7 @@ class Chatbot:
         "TOP_P": 1,
         "TEMPERATURE": 0.7,
         "VISION_CONFIG": {
-            "TEMPERATURE": 0.3,
+            "TEMPERATURE": 0.6,
             "TOP_P": 1,
             "TOP_K": 32,
             "MAX_OUTPUT_TOKENS": 4096,
@@ -66,6 +66,7 @@ class Chatbot:
         self.transcriber = self._get_transcriber()
         self.vision_model = self._get_vision_model()
         self.vision_chat = ""
+        self.frame = None
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
@@ -123,18 +124,17 @@ class Chatbot:
     def _generate_vision_content(self):
         while True:
             time.sleep(2)
-            image_parts = [
+            ret, buffer = cv2.imencode('.jpg', self.frame)
+            prompt_parts = [
                 {
                     "mime_type": "image/jpeg",
-                    "data": Path("temp/camera.jpg").read_bytes()
+                    "data": buffer.tobytes()
                 },
-            ]
-            prompt_parts = [
-                image_parts[0],
                 self.vision_prompt
             ]
             response = self.vision_model.generate_content(prompt_parts)
-            self.vision_chat = f"Penglihatan nyata Vixevia:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
+            self.vision_chat += f"\nPenglihatan nyata Vixevia:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
+
 
     def _get_convo(self):
         history = []
@@ -152,7 +152,7 @@ class Chatbot:
 
     def _user_input_speech(self):
         r = sr.Recognizer()
-        r.dynamic_energy_threshold = True
+        r.energy_threshold = 32000
         with sr.Microphone() as source:
             print("Listening...")
             audio = r.listen(source)
@@ -188,12 +188,10 @@ class Chatbot:
         cap = cv2.VideoCapture(0)
         last_saved_time = time.time()
         while True:
-            ret, frame = cap.read()
+            ret, self.frame = cap.read()
             if not ret:
                 break
-            # cv2.imshow('Video', frame)
             if time.time() - last_saved_time >= 1:
-                cv2.imwrite('temp/camera.jpg', frame)
                 last_saved_time = time.time()
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
