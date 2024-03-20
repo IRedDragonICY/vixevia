@@ -1,13 +1,14 @@
+from transformers import pipeline
 from datetime import datetime
 import re
 import google.generativeai as genai
 import pickle
 import simpleaudio as sa
 from google.generativeai.types import generation_types
-import speech_recognition as sr
 from gtts import gTTS
 from pathlib import Path
 from so_vits_svc_fork.inference.main import infer
+import speech_recognition as sr
 
 
 class Chatbot:
@@ -39,6 +40,17 @@ class Chatbot:
         self.convo = self._get_convo()
         if not self.convo.history:
             self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
+        self.transcriber = pipeline(
+            "automatic-speech-recognition",
+            model="model/speech-recognition",
+            device="cuda",
+        )
+        self.transcriber.model.config.forced_decoder_ids = (
+            self.transcriber.tokenizer.get_decoder_prompt_ids(
+                language="id",
+                task="transcribe",
+            )
+        )
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
@@ -84,15 +96,14 @@ class Chatbot:
     def _user_input_speech(self):
         r = sr.Recognizer()
         with sr.Microphone() as source:
-            r.adjust_for_ambient_noise(source)
-            r.energy_threshold = 80000
             print("Listening...")
-            audio = r.listen(source, timeout=5)
-            try:
-                print("Processing...")
-                return r.recognize_google(audio, language='id-ID')
-            except sr.UnknownValueError:
-                return " "
+            audio = r.listen(source)
+            print("Processing...")
+            with open("temp/user_input.mp3", "wb") as f:
+                f.write(audio.get_wav_data())
+            transcription = self.transcriber("temp/user_input.mp3")
+            print("Processing...")
+            return transcription['text']
 
     def _play_audio(self, file_path):
         sa.WaveObject.from_wave_file(file_path).play().wait_done()
