@@ -21,6 +21,7 @@ logging.getLogger("torch").setLevel(logging.ERROR)
 logging.disable(logging.CRITICAL)
 logging.disable(logging.ERROR)
 
+
 class Chatbot:
     CONFIG = {
         "MODEL_NAME": "gemini-1.0-pro-001",
@@ -31,6 +32,12 @@ class Chatbot:
         "TOP_K": 1,
         "TOP_P": 1,
         "TEMPERATURE": 0.7,
+        "VISION_CONFIG": {
+            "TEMPERATURE": 0.3,
+            "TOP_P": 1,
+            "TOP_K": 32,
+            "MAX_OUTPUT_TOKENS": 4096,
+        },
         "FILES": {
             "API_KEY": 'api_key.txt',
             "SYSTEM_PROMPT": 'system_prompt.txt',
@@ -60,7 +67,8 @@ class Chatbot:
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
-            return f.read().splitlines() if filename == self.CONFIG["FILES"]["API_KEY"] else '\n'.join(f.read().splitlines())
+            return f.read().splitlines() if filename == self.CONFIG["FILES"]["API_KEY"] else '\n'.join(
+                f.read().splitlines())
 
     def _model_config(self):
         generation_config = generation_types.GenerationConfig(
@@ -69,7 +77,8 @@ class Chatbot:
             top_k=self.CONFIG["TOP_K"],
             max_output_tokens=self.CONFIG["MAX_OUTPUT_TOKENS"],
         )
-        safety_settings = [{"category": cat, "threshold": self.CONFIG["BLOCK_NONE"]} for cat in self.CONFIG["HARM_CATEGORIES"]]
+        safety_settings = [{"category": cat, "threshold": self.CONFIG["BLOCK_NONE"]} for cat in
+                           self.CONFIG["HARM_CATEGORIES"]]
         return generation_config, safety_settings
 
     def _get_model(self):
@@ -101,10 +110,10 @@ class Chatbot:
         return genai.GenerativeModel(
             model_name="gemini-1.0-pro-vision-latest",
             generation_config=generation_types.GenerationConfig(
-                temperature=0.3,
-                top_p=1,
-                top_k=32,
-                max_output_tokens=4096,
+                temperature=self.CONFIG["VISION_CONFIG"]["TEMPERATURE"],
+                top_p=self.CONFIG["VISION_CONFIG"]["TOP_P"],
+                top_k=self.CONFIG["VISION_CONFIG"]["TOP_K"],
+                max_output_tokens=self.CONFIG["VISION_CONFIG"]["MAX_OUTPUT_TOKENS"],
             ),
             safety_settings=self.safety_settings
         )
