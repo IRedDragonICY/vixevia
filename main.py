@@ -1,16 +1,20 @@
-from transformers import pipeline
+import threading
+import time
 from datetime import datetime
 import re
-import google.generativeai as genai
 import pickle
-import simpleaudio as sa
-from google.generativeai.types import generation_types
-from gtts import gTTS
 from pathlib import Path
-from so_vits_svc_fork.inference.main import infer
-import speech_recognition as sr
 import logging
+import cv2
+import google.generativeai as genai
+import simpleaudio as sa
+import speech_recognition as sr
+from gtts import gTTS
+from so_vits_svc_fork.inference.main import infer
+from transformers import pipeline
+from google.generativeai.types import generation_types
 
+# Set logging levels
 logging.getLogger("transformers").setLevel(logging.ERROR)
 logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
 logging.getLogger("torch").setLevel(logging.ERROR)
@@ -50,17 +54,9 @@ class Chatbot:
         self.convo = self._get_convo()
         if not self.convo.history:
             self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
-        self.transcriber = pipeline(
-            "automatic-speech-recognition",
-            model="model/speech-recognition",
-            device="cuda",
-        )
-        self.transcriber.model.config.forced_decoder_ids = (
-            self.transcriber.tokenizer.get_decoder_prompt_ids(
-                language="id",
-                task="transcribe",
-            )
-        )
+        self.transcriber = self._get_transcriber()
+        self.vision_model = self._get_vision_model()
+        self.vision_chat = ""
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
@@ -77,11 +73,57 @@ class Chatbot:
         return generation_config, safety_settings
 
     def _get_model(self):
-        genai.configure(api_key=self.api_keys[self.api_key_index])
-        self.api_key_index = (self.api_key_index + 1) % len(self.api_keys)
+        selected_api_keys = [self.api_keys[1], self.api_keys[2]]
+        genai.configure(api_key=selected_api_keys[self.api_key_index])
+        self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
         return genai.GenerativeModel(model_name=self.CONFIG["MODEL_NAME"],
                                      generation_config=self.generation_config,
                                      safety_settings=self.safety_settings)
+
+    def _get_transcriber(self):
+        transcriber = pipeline(
+            "automatic-speech-recognition",
+            model="model/speech-recognition",
+            device="cuda",
+        )
+        transcriber.model.config.forced_decoder_ids = (
+            transcriber.tokenizer.get_decoder_prompt_ids(
+                language="id",
+                task="transcribe",
+            )
+        )
+        return transcriber
+
+    def _get_vision_model(self):
+        selected_api_keys = [self.api_keys[2], self.api_keys[3]]
+        genai.configure(api_key=selected_api_keys[self.api_key_index])
+        self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
+        return genai.GenerativeModel(
+            model_name="gemini-1.0-pro-vision-latest",
+            generation_config=generation_types.GenerationConfig(
+                temperature=0.3,
+                top_p=1,
+                top_k=32,
+                max_output_tokens=4096,
+            ),
+            safety_settings=self.safety_settings
+        )
+
+    def _generate_vision_content(self):
+        while True:
+            time.sleep(2)
+            image_parts = [
+                {
+                    "mime_type": "image/jpeg",
+                    "data": Path("temp/camera.jpg").read_bytes()
+                },
+            ]
+            prompt_parts = [
+                image_parts[0],
+                "\nDeskripsikan gambar secara jelas-jelasnya.\nHarus teliti, akurat dan sangat detail! klasifikasikan dengan jujur,tanpa halusinasi dan berkhayal!\n",
+            ]
+            response = self.vision_model.generate_content(prompt_parts)
+            self.vision_chat = f"Penglihatan nyata Vixevia:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
 
     def _get_convo(self):
         history = []
@@ -129,12 +171,34 @@ class Chatbot:
         )
         self._play_audio(self.CONFIG["FILES"]["RESPONSE_WAV"])
         self._save_convo()
+        self.vision_chat = ""
+
+    def _capture_video(self):
+        cap = cv2.VideoCapture(0)
+        last_saved_time = time.time()
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            # cv2.imshow('Video', frame)
+            if time.time() - last_saved_time >= 1:
+                cv2.imwrite('temp/camera.jpg', frame)
+                last_saved_time = time.time()
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        cap.release()
+        cv2.destroyAllWindows()
 
     def start_chat(self):
+        video_thread = threading.Thread(target=self._capture_video)
+        video_thread.start()
+        vision_thread = threading.Thread(target=self._generate_vision_content)
+        vision_thread.start()
         while True:
             user_input = self._user_input_speech()
             user_input += f"\nTime:({datetime.now().strftime('%H:%M:%S')})"
             print(f"User: {user_input}")
+            user_input += self.vision_chat
             self._handle_response(user_input)
 
 
