@@ -1,4 +1,4 @@
 /api_key.txt
 /session.pkl
-/model/
+/model/*
 /temp/
