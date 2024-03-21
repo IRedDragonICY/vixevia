@@ -14,6 +14,8 @@ from so_vits_svc_fork.inference.main import infer
 from transformers import pipeline
 from google.generativeai.types import generation_types
 
+from Config import Config
+
 # Set logging levels
 logging.getLogger("transformers").setLevel(logging.ERROR)
 logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
@@ -23,41 +25,12 @@ logging.disable(logging.ERROR)
 
 
 class Chatbot:
-    CONFIG = {
-        "MODEL_NAME": "gemini-1.0-pro-001",
-        "HARM_CATEGORIES": ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                            "HARM_CATEGORY_DANGEROUS_CONTENT"],
-        "BLOCK_NONE": "BLOCK_NONE",
-        "MAX_OUTPUT_TOKENS": 999999999,
-        "TOP_K": 1,
-        "TOP_P": 1,
-        "TEMPERATURE": 0.7,
-        "VISION_CONFIG": {
-            "TEMPERATURE": 0.6,
-            "TOP_P": 1,
-            "TOP_K": 32,
-            "MAX_OUTPUT_TOKENS": 4096,
-        },
-        "FILES": {
-            "API_KEY": 'api_key.txt',
-            "SYSTEM_PROMPT": 'system_prompt.txt',
-            "VISION_PROMPT": 'vision_prompt.txt',
-            "SESSION": 'session.pkl',
-            "RESPONSE_MP3": "temp/response.mp3",
-            "RESPONSE_WAV": "temp/response.wav",
-            "MODEL_PATH": "model/audio/audio.pth",
-            "CONFIG_PATH": "model/audio/audio.json",
-            "USER_INPUT": "temp/user_input.mp3"
-        },
-        "MAX_CHUNK_SECONDS": 95,
-        "DEVICE": "cuda"
-    }
-
     def __init__(self):
-        self.api_keys = self._load_from_file(self.CONFIG["FILES"]["API_KEY"])
+        self.CONFIG = Config()
+        self.api_keys = self._load_from_file(self.CONFIG.FILES["API_KEY"])
         self.api_key_index = 0
-        self.system_prompt = self._load_from_file(self.CONFIG["FILES"]["SYSTEM_PROMPT"])
-        self.vision_prompt = self._load_from_file(self.CONFIG["FILES"]["VISION_PROMPT"])
+        self.system_prompt = self._load_from_file(self.CONFIG.FILES["SYSTEM_PROMPT"])
+        self.vision_prompt = self._load_from_file(self.CONFIG.FILES["VISION_PROMPT"])
         self.generation_config, self.safety_settings = self._model_config()
         self.model = self._get_model()
         self.convo = self._get_convo()
@@ -67,6 +40,7 @@ class Chatbot:
         self.vision_model = self._get_vision_model()
         self.vision_chat = ""
         self.frame = None
+        self.vision_chat_ready = threading.Event()
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
@@ -95,8 +69,8 @@ class Chatbot:
     def _get_transcriber(self):
         transcriber = pipeline(
             "automatic-speech-recognition",
-            model="model/speech-recognition",
-            device="cuda",
+            model=self.CONFIG["FILES"]["MODEL_SPEECHRECOGNITION_PATH"],
+            device=self.CONFIG["DEVICE"],
         )
         transcriber.model.config.forced_decoder_ids = (
             transcriber.tokenizer.get_decoder_prompt_ids(
@@ -111,7 +85,7 @@ class Chatbot:
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
         return genai.GenerativeModel(
-            model_name="gemini-1.0-pro-vision-latest",
+            model_name=self.CONFIG["VISION_CONFIG"]["MODEL_NAME"],
             generation_config=generation_types.GenerationConfig(
                 temperature=self.CONFIG["VISION_CONFIG"]["TEMPERATURE"],
                 top_p=self.CONFIG["VISION_CONFIG"]["TOP_P"],
@@ -122,8 +96,12 @@ class Chatbot:
         )
 
     def _generate_vision_content(self):
+        print(f"{datetime.now().strftime('%H:%M:%S')} Video is ready")
         while True:
+            if self.frame is None:
+                continue
             time.sleep(2)
+
             ret, buffer = cv2.imencode('.jpg', self.frame)
             prompt_parts = [
                 {
@@ -133,8 +111,8 @@ class Chatbot:
                 self.vision_prompt
             ]
             response = self.vision_model.generate_content(prompt_parts)
-            self.vision_chat += f"\nPenglihatan nyata Vixevia:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
-
+            self.vision_chat += f"\nVixevia Melihat:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
+            self.vision_chat_ready.set()
 
     def _get_convo(self):
         history = []
@@ -153,6 +131,7 @@ class Chatbot:
     def _user_input_speech(self):
         r = sr.Recognizer()
         r.energy_threshold = 32000
+        r.non_speaking_duration = 0.3
         with sr.Microphone() as source:
             print("Listening...")
             audio = r.listen(source)
@@ -160,6 +139,9 @@ class Chatbot:
             with open(self.CONFIG["FILES"]["USER_INPUT"], "wb") as f:
                 f.write(audio.get_wav_data())
             transcription = self.transcriber(self.CONFIG["FILES"]["USER_INPUT"])
+            # FIX BUG Whisper
+            if transcription['text'] == " Thank you.":
+                return " "
             return transcription['text']
 
     def _play_audio(self, file_path):
@@ -185,6 +167,7 @@ class Chatbot:
         self.vision_chat = ""
 
     def _capture_video(self):
+        print(f"{datetime.now().strftime('%H:%M:%S')} Initializing...")
         cap = cv2.VideoCapture(0)
         last_saved_time = time.time()
         while True:
@@ -203,6 +186,8 @@ class Chatbot:
         video_thread.start()
         vision_thread = threading.Thread(target=self._generate_vision_content)
         vision_thread.start()
+        self.vision_chat_ready.wait()
+        print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
         while True:
             user_input = self._user_input_speech()
             print(f"User: {user_input}")

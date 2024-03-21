@@ -3,8 +3,8 @@ SpeechRecognition
 so-vits-svc-fork
 TTS
 PyAudio
-simpleaudio~=1.0.4
+simpleaudio
 torch~=2.2.1+cu121
-transformers~=4.38.2
-gTTS~=2.5.1
+transformers
+gTTS
 opencv-python
