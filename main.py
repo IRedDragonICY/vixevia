@@ -101,18 +101,12 @@ class Chatbot:
             if self.frame is None:
                 continue
             time.sleep(2)
-
             ret, buffer = cv2.imencode('.jpg', self.frame)
-            prompt_parts = [
-                {
-                    "mime_type": "image/jpeg",
-                    "data": buffer.tobytes()
-                },
-                self.vision_prompt
-            ]
+            prompt_parts = [{"mime_type": "image/jpeg", "data": buffer.tobytes()}, self.vision_prompt]
             response = self.vision_model.generate_content(prompt_parts)
-            self.vision_chat += f"\nVixevia Melihat:({response.text})\nTime:({datetime.now().strftime('%H:%M:%S')})"
-            self.vision_chat_ready.set()
+            if response.parts:
+                self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
+                self.vision_chat_ready.set()
 
     def _get_convo(self):
         history = []
@@ -189,9 +183,8 @@ class Chatbot:
         self.vision_chat_ready.wait()
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
         while True:
-            user_input = self._user_input_speech()
-            print(f"User: {user_input}")
-            user_input += f"\nTime:({datetime.now().strftime('%H:%M:%S')})"
+            user_input = f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} User: { self._user_input_speech()}"
+            print(f"{user_input}")
             user_input += self.vision_chat
             self._handle_response(user_input)
 
