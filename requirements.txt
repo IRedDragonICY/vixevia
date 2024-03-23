@@ -1,7 +1,6 @@
 google-generativeai
 SpeechRecognition
 so-vits-svc-fork
-TTS
 PyAudio
 simpleaudio
 torch~=2.2.1+cu121

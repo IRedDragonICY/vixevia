@@ -103,10 +103,13 @@ class Chatbot:
             time.sleep(2)
             ret, buffer = cv2.imencode('.jpg', self.frame)
             prompt_parts = [{"mime_type": "image/jpeg", "data": buffer.tobytes()}, self.vision_prompt]
-            response = self.vision_model.generate_content(prompt_parts)
-            if response.parts:
-                self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
-                self.vision_chat_ready.set()
+            try:
+                response = self.vision_model.generate_content(prompt_parts, safety_settings=self.safety_settings)
+                if response.parts:
+                    self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
+                    self.vision_chat_ready.set()
+            except ValueError:
+                continue
 
     def _get_convo(self):
         history = []
@@ -144,19 +147,20 @@ class Chatbot:
     def _handle_response(self, user_input):
         response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
         response = re.sub(r'\(.*?\)', '', response)
-        Path(self.CONFIG["FILES"]["RESPONSE_MP3"]).unlink(missing_ok=True)
-        gTTS(text=response, lang='id').save(self.CONFIG["FILES"]["RESPONSE_MP3"])
-        infer(
-            input_path=Path(self.CONFIG["FILES"]["RESPONSE_MP3"]),
-            output_path=Path(self.CONFIG["FILES"]["RESPONSE_WAV"]),
-            model_path=Path(self.CONFIG["FILES"]["MODEL_PATH"]),
-            config_path=Path(self.CONFIG["FILES"]["CONFIG_PATH"]),
-            max_chunk_seconds=self.CONFIG["MAX_CHUNK_SECONDS"],
-            device=self.CONFIG["DEVICE"],
-            speaker="",
-            transpose=7,
-        )
-        self._play_audio(self.CONFIG["FILES"]["RESPONSE_WAV"])
+        if response.strip():
+            Path(self.CONFIG["FILES"]["RESPONSE_MP3"]).unlink(missing_ok=True)
+            gTTS(text=response, lang='id').save(self.CONFIG["FILES"]["RESPONSE_MP3"])
+            infer(
+                input_path=Path(self.CONFIG["FILES"]["RESPONSE_MP3"]),
+                output_path=Path(self.CONFIG["FILES"]["RESPONSE_WAV"]),
+                model_path=Path(self.CONFIG["FILES"]["MODEL_PATH"]),
+                config_path=Path(self.CONFIG["FILES"]["CONFIG_PATH"]),
+                max_chunk_seconds=self.CONFIG["MAX_CHUNK_SECONDS"],
+                device=self.CONFIG["DEVICE"],
+                speaker="",
+                transpose=7,
+            )
+            self._play_audio(self.CONFIG["FILES"]["RESPONSE_WAV"])
         self._save_convo()
         self.vision_chat = ""
 
@@ -183,7 +187,7 @@ class Chatbot:
         self.vision_chat_ready.wait()
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
         while True:
-            user_input = f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} User: { self._user_input_speech()}"
+            user_input = f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} User: {self._user_input_speech()}"
             print(f"{user_input}")
             user_input += self.vision_chat
             self._handle_response(user_input)
