@@ -52,7 +52,7 @@ class Chatbot:
         return generation_config, safety_settings
 
     def _get_model(self):
-        selected_api_keys = self.api_keys[:3]
+        selected_api_keys = self.api_keys[:4]
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
         return genai.GenerativeModel(model_name=self.CONFIG["MODEL_NAME"],
@@ -74,7 +74,7 @@ class Chatbot:
         return transcriber
 
     def _get_vision_model(self):
-        selected_api_keys = self.api_keys[3:5]
+        selected_api_keys = self.api_keys[4:8]
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
         return genai.GenerativeModel(
