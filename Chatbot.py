@@ -5,6 +5,7 @@ import re
 import pickle
 from pathlib import Path
 import cv2
+import google
 import google.generativeai as genai
 import simpleaudio as sa
 import speech_recognition as sr
@@ -51,7 +52,7 @@ class Chatbot:
         return generation_config, safety_settings
 
     def _get_model(self):
-        selected_api_keys = [self.api_keys[1], self.api_keys[2]]
+        selected_api_keys = self.api_keys[:3]
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
         return genai.GenerativeModel(model_name=self.CONFIG["MODEL_NAME"],
@@ -73,7 +74,7 @@ class Chatbot:
         return transcriber
 
     def _get_vision_model(self):
-        selected_api_keys = [self.api_keys[2], self.api_keys[3]]
+        selected_api_keys = self.api_keys[3:5]
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
         return genai.GenerativeModel(
@@ -120,8 +121,8 @@ class Chatbot:
     def _user_input_speech(self):
         r = sr.Recognizer()
         r.energy_threshold = 32000
-        r.non_speaking_duration = 0.3
         with sr.Microphone() as source:
+            r.adjust_for_ambient_noise(source)
             print("Listening...")
             audio = r.listen(source)
             print("Processing...")
@@ -137,7 +138,12 @@ class Chatbot:
         sa.WaveObject.from_wave_file(file_path).play().wait_done()
 
     def _handle_response(self, user_input):
-        response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
+        response = ""
+        try:
+            response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
+        except google.generativeai.types.generation_types.StopCandidateException as e:
+            print(f"Exception occurred: {e}")
+            self._handle_response(user_input)
         response = re.sub(r'\(.*?\)', '', response)
         if response.strip():
             Path(self.CONFIG["FILES"]["RESPONSE_MP3"]).unlink(missing_ok=True)
@@ -160,16 +166,18 @@ class Chatbot:
         print(f"{datetime.now().strftime('%H:%M:%S')} Initializing...")
         cap = cv2.VideoCapture(0)
         last_saved_time = time.time()
-        while True:
-            ret, self.frame = cap.read()
-            if not ret:
-                break
-            if time.time() - last_saved_time >= 1:
-                last_saved_time = time.time()
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        cap.release()
-        cv2.destroyAllWindows()
+        try:
+            while True:
+                ret, self.frame = cap.read()
+                if not ret:
+                    break
+                if time.time() - last_saved_time >= 1:
+                    last_saved_time = time.time()
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        finally:
+            cap.release()
+            cv2.destroyAllWindows()
 
     def start_chat(self):
         video_thread = threading.Thread(target=self._capture_video)

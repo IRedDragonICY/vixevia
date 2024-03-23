@@ -19,6 +19,9 @@ app = FastAPI()
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Mount model files
+app.mount("/model", StaticFiles(directory="model"), name="model")
+
 
 @app.get("/")
 async def read_items():
