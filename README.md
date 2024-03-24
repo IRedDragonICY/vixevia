@@ -35,6 +35,12 @@ To get started with Vixevia, follow these steps:
    python main.py
    ```
 
+## TODO
+
+- [ ] Make lipsync Live2D
+- [ ] Change Speech Recognition to Whisper Large V3 Fast
+- [ ] Create custom Live2D model for Vixevia
+- [ ] Add opencv auto labeling so can remmeber person from Gemini Pro Vision
 ## Contributing
 
 Contributions to Vixevia are welcome! If you have any ideas, bug reports, or feature requests, please open an issue or submit a pull request. Make sure to follow the project's coding guidelines and best practices.
