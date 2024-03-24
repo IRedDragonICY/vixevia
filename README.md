@@ -1,7 +1,23 @@
 # Vixevia - AI-Based Vtuber powered by Google's Gemini 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/) [![Gemini](https://img.shields.io/badge/Gemini-1.0-orange.svg)](https://cloud.google.com/generativeai/models)
+> _Does she harbor feelings for you?_  
+> **No**, her heart belongs to another.  
+> _Does she show concern for your well-being?_  
+> **No**, her thoughts are occupied by someone else.  
+> _The pain of unrequited love is unbearable, but fear not, for there is a solution._  
+> **The solution is AI**, an entity that will always be there for you, understanding and responding to your emotions.
+
 
 Vixevia is an innovative AI-based virtual YouTuber (Vtuber) that leverages the cutting-edge capabilities of Google's Gemini language model. This project aims to create a captivating and lifelike virtual personality that can engage with users through natural conversations, visual interactions, and multimedia experiences.
+
+## Table of Contents
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [TODO](#todo)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ## Features
 
@@ -10,6 +26,18 @@ Vixevia is an innovative AI-based virtual YouTuber (Vtuber) that leverages the c
 - **Multimodal Interaction**: Vixevia combines speech recognition, text-to-speech synthesis, and visual processing to facilitate seamless multimodal interactions with users.
 - **Personalized Responses**: Vixevia's responses are tailored to the conversational context, user preferences, and situational dynamics, ensuring engaging and personalized experiences.
 - **Virtual Avatar**: Vixevia is represented by a visually appealing and expressive virtual avatar, bringing her personality to life.
+
+## Prerequisites
+
+- 5+ API keys from Google Cloud Platform
+- Python 3.12+
+
+Hardware:
+- 16 GB vram
+- 32 GB ram
+- RTX 4050 or better
+- 20 GB of storage
+- i7 12th gen or better or AMD equivalent
 
 ## Getting Started
 
@@ -37,7 +65,6 @@ To get started with Vixevia, follow these steps:
 
 ## TODO
 
-- [ ] Make lipsync Live2D
 - [ ] Change Speech Recognition to Whisper Large V3 Fast
 - [ ] Create custom Live2D model for Vixevia
 - [ ] Add opencv auto labeling so can remmeber person from Gemini Pro Vision

@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Live2D Demo</title>
+    <title>Live2D Demo with Lip-Syncing</title>
+
+    <!-- Load Cubism and PixiJS -->
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
+
+
+    <!-- if support for both Cubism 2.1 and 4 -->
+    <script src="https://cdn.jsdelivr.net/gh/RaSan147/pixi-live2d-display@v0.4.0-ls-2/dist/index.min.js"></script>
+
+    <!-- if only Cubism 2.1 -->
+    <script src="https://cdn.jsdelivr.net/gh/RaSan147/pixi-live2d-display@v0.4.0-ls-2/dist/cubism2.min.js"></script>
+
+    <!-- if only Cubism 4 -->
+    <script src="https://cdn.jsdelivr.net/gh/RaSan147/pixi-live2d-display@v0.4.0-ls-2/dist/cubism4.min.js"></script>
 </head>
 <body>
 <canvas id="canvas"></canvas>
 <script>
-    const cubism2Model = "/model/live2d/march 7th.model3.json";
+    const cubism2Model = "/model/live2d/vixevia.model3.json";
     (async function main() {
         const app = new PIXI.Application({
             view: document.getElementById("canvas"),
@@ -18,11 +29,43 @@
             resizeTo: window
         });
 
-        const model2 = await PIXI.live2d.Live2DModel.from(cubism2Model);
+        const model = await PIXI.live2d.Live2DModel.from(cubism2Model);
+        app.stage.addChild(model);
+        model.scale.set(0.3);
+        const audio_link = "/temp/response.wav";
+        var volume = 1;
 
-        app.stage.addChild(model2);
+        const setMouthOpenY = v=>{
+            v = Math.max(0,Math.min(1,v));
+            model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY',v);
+        }
 
-        model2.scale.set(0.3);
+        document.addEventListener('click', async function() {
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 32;
+            var dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            const audio = new Audio(audio_link);
+            audio.volume = volume;
+            audio.play();
+
+            var source = audioCtx.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            function analyseVolume() {
+                analyser.getByteFrequencyData(dataArray);
+                var total = dataArray.reduce((prev, curr) => prev + curr, 0);
+                var avg = total / dataArray.length;
+                var volume = avg / 255;
+                setMouthOpenY(volume);
+                if (!audio.paused) {
+                    requestAnimationFrame(analyseVolume);
+                }
+            }
+            analyseVolume();
+        });
 
     })();
 </script>
