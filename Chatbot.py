@@ -1,18 +1,18 @@
+import pickle
+import re
 import threading
 import time
 from datetime import datetime
-import re
-import pickle
 from pathlib import Path
 import cv2
-import google
 import google.generativeai as genai
 import simpleaudio as sa
 import speech_recognition as sr
+from concurrent.futures import ThreadPoolExecutor
+from google.generativeai.types import generation_types
 from gtts import gTTS
 from so_vits_svc_fork.inference.main import infer
 from transformers import pipeline
-from google.generativeai.types import generation_types
 
 from Config import Config
 
@@ -34,6 +34,7 @@ class Chatbot:
         self.vision_chat = ""
         self.frame = None
         self.vision_chat_ready = threading.Event()
+        self.executor = ThreadPoolExecutor(max_workers=2)
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
@@ -51,10 +52,13 @@ class Chatbot:
                            self.CONFIG["HARM_CATEGORIES"]]
         return generation_config, safety_settings
 
-    def _get_model(self):
-        selected_api_keys = self.api_keys[:4]
+    def _configure_genai(self, selected_api_keys):
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
+
+    def _get_model(self):
+        selected_api_keys = self.api_keys[:3]
+        self._configure_genai(selected_api_keys)
         return genai.GenerativeModel(model_name=self.CONFIG["MODEL_NAME"],
                                      generation_config=self.generation_config,
                                      safety_settings=self.safety_settings)
@@ -74,9 +78,8 @@ class Chatbot:
         return transcriber
 
     def _get_vision_model(self):
-        selected_api_keys = self.api_keys[4:8]
-        genai.configure(api_key=selected_api_keys[self.api_key_index])
-        self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
+        selected_api_keys = self.api_keys[3:7]
+        self._configure_genai(selected_api_keys)
         return genai.GenerativeModel(
             model_name=self.CONFIG["VISION_CONFIG"]["MODEL_NAME"],
             generation_config=generation_types.GenerationConfig(
@@ -138,12 +141,15 @@ class Chatbot:
         sa.WaveObject.from_wave_file(file_path).play().wait_done()
 
     def _handle_response(self, user_input):
-        response = ""
-        try:
-            response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
-        except google.generativeai.types.generation_types.StopCandidateException as e:
-            print(f"Exception occurred: {e}")
-            self._handle_response(user_input)
+        for _ in range(10):
+            try:
+                response = "".join(chunk.text for chunk in self.convo.send_message(user_input))
+                break
+            except Exception as e:
+                print(f"Exception occurred: {e}. Retrying...")
+        else:
+            print("Failed to send message after 3 attempts. Exiting.")
+            return
         response = re.sub(r'\(.*?\)', '', response)
         if response.strip():
             Path(self.CONFIG["FILES"]["RESPONSE_MP3"]).unlink(missing_ok=True)
@@ -180,10 +186,8 @@ class Chatbot:
             cv2.destroyAllWindows()
 
     def start_chat(self):
-        video_thread = threading.Thread(target=self._capture_video)
-        video_thread.start()
-        vision_thread = threading.Thread(target=self._generate_vision_content)
-        vision_thread.start()
+        self.executor.submit(self._capture_video)
+        self.executor.submit(self._generate_vision_content)
         self.vision_chat_ready.wait()
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
         while True:
