@@ -1,4 +1,4 @@
-# Vixevia - AI-Based Vtuber powered by Google's Gemini 
+# V.I.X.E.V.I.A : Virtual Interactive and Xpressive Entertainment Visual Idol Avatar
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/) [![Gemini](https://img.shields.io/badge/Gemini-1.0-orange.svg)](https://cloud.google.com/generativeai/models)
 > _Does she harbor feelings for you?_  
 > **No**, her heart belongs to another.  
@@ -65,7 +65,6 @@ To get started with Vixevia, follow these steps:
 
 ## TODO
 
-- [ ] Change Speech Recognition to Whisper Large V3 Fast
 - [ ] Create custom Live2D model for Vixevia
 - [ ] Add opencv auto labeling so can remmeber person from Gemini Pro Vision
 ## Contributing
