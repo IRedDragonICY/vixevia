@@ -1,5 +1,7 @@
 # V.I.X.E.V.I.A : Virtual Interactive and Xpressive Entertainment Visual Idol Avatar
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/) [![Gemini](https://img.shields.io/badge/Gemini-1.0-orange.svg)](https://cloud.google.com/generativeai/models)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/) [![Gemini](https://img.shields.io/badge/Gemini-1.5-orange.svg)](https://cloud.google.com/generativeai/models)
+
+[ID](README.ID.md) | [JP](README.JP.md) | [EN](README.md) | [ZN](README.ZN.md)
 > _Does she harbor feelings for you?_  
 > **No**, her heart belongs to another.  
 > _Does she show concern for your well-being?_  
