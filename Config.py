@@ -1,5 +1,5 @@
 class Config:
-    MODEL_NAME = "gemini-1.0-pro-001"
+    MODEL_NAME = "gemini-1.5-pro-latest"
     HARM_CATEGORIES = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
                        "HARM_CATEGORY_DANGEROUS_CONTENT"]
     BLOCK_NONE = "BLOCK_NONE"
@@ -8,7 +8,7 @@ class Config:
     TOP_P = 1
     TEMPERATURE = 0.85
     VISION_CONFIG = {
-        "MODEL_NAME": "gemini-1.0-pro-vision-latest",
+        "MODEL_NAME": "gemini-1.5-pro-latest",
         "TEMPERATURE": 0.3,
         "TOP_P": 1,
         "TOP_K": 32,

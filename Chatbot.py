@@ -4,6 +4,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+
 import cv2
 import google.generativeai as genai
 import simpleaudio as sa
@@ -59,9 +60,12 @@ class Chatbot:
     def _get_model(self):
         selected_api_keys = self.api_keys[:3]
         self._configure_genai(selected_api_keys)
-        return genai.GenerativeModel(model_name=self.CONFIG["MODEL_NAME"],
-                                     generation_config=self.generation_config,
-                                     safety_settings=self.safety_settings)
+        return genai.GenerativeModel(
+            model_name=self.CONFIG["MODEL_NAME"],
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings,
+            system_instruction=self.system_prompt
+        )
 
     def _get_transcriber(self):
         transcriber = pipeline(
