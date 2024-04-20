@@ -22,11 +22,8 @@ class Config:
         "RESPONSE_MP3": "temp/response.mp3",
         "RESPONSE_WAV": "temp/response.wav",
         "MODEL_PATH": "model/audio/audio.pth",
-        "MODEL_SPEECHRECOGNITION_PATH": "model/speech-recognition",
         "CONFIG_PATH": "model/audio/audio.json",
-        "USER_INPUT": "temp/user_input.mp3"
     }
-    MAX_CHUNK_SECONDS = 95
     DEVICE = "cuda"
 
     def __getitem__(self, item):

@@ -30,7 +30,6 @@ class Chatbot:
         self.convo = self._get_convo()
         if not self.convo.history:
             self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
-        self.transcriber = self._get_transcriber()
         self.vision_model = self._get_vision_model()
         self.vision_chat = ""
         self.frame = None
@@ -66,20 +65,6 @@ class Chatbot:
             safety_settings=self.safety_settings,
             system_instruction=self.system_prompt
         )
-
-    def _get_transcriber(self):
-        transcriber = pipeline(
-            "automatic-speech-recognition",
-            model=self.CONFIG["FILES"]["MODEL_SPEECHRECOGNITION_PATH"],
-            device=self.CONFIG["DEVICE"],
-        )
-        transcriber.model.config.forced_decoder_ids = (
-            transcriber.tokenizer.get_decoder_prompt_ids(
-                language="id",
-                task="transcribe",
-            )
-        )
-        return transcriber
 
     def _get_vision_model(self):
         selected_api_keys = self.api_keys[3:7]
@@ -131,9 +116,8 @@ class Chatbot:
         with sr.Microphone() as source:
             r.adjust_for_ambient_noise(source)
             print("Listening...")
-            audio = r.listen(source)
+            audio_bytes = r.listen(source).get_wav_data()
             print("Processing...")
-            audio_bytes = audio.get_wav_data()
             return audio_bytes
 
     def _play_audio(self, file_path):
@@ -189,17 +173,13 @@ class Chatbot:
         self.executor.submit(self._generate_vision_content)
         self.vision_chat_ready.wait()
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
+
         while True:
-            audio_bytes = self._user_input_speech()
             user_input = {
                 "role": "user",
                 "parts": [
-                    {
-                        "mime_type": "audio/wav",  #
-                        "data": audio_bytes,
-                    }
+                    {"mime_type": "audio/wav", "data": self._user_input_speech()},
+                    {"text": self.vision_chat},
                 ],
             }
-            user_input["parts"].append({"text": self.vision_chat})
-
             self._handle_response(user_input)
