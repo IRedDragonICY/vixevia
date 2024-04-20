@@ -133,13 +133,8 @@ class Chatbot:
             print("Listening...")
             audio = r.listen(source)
             print("Processing...")
-            with open(self.CONFIG["FILES"]["USER_INPUT"], "wb") as f:
-                f.write(audio.get_wav_data())
-            transcription = self.transcriber(self.CONFIG["FILES"]["USER_INPUT"])
-            # FIX BUG Whisper
-            if transcription['text'] == " Thank you.":
-                return " "
-            return transcription['text']
+            audio_bytes = audio.get_wav_data()
+            return audio_bytes
 
     def _play_audio(self, file_path):
         sa.WaveObject.from_wave_file(file_path).play().wait_done()
@@ -195,7 +190,16 @@ class Chatbot:
         self.vision_chat_ready.wait()
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
         while True:
-            user_input = f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} User: {self._user_input_speech()}"
-            print(f"{user_input}")
-            user_input += self.vision_chat
+            audio_bytes = self._user_input_speech()
+            user_input = {
+                "role": "user",
+                "parts": [
+                    {
+                        "mime_type": "audio/wav",  #
+                        "data": audio_bytes,
+                    }
+                ],
+            }
+            user_input["parts"].append({"text": self.vision_chat})
+
             self._handle_response(user_input)
