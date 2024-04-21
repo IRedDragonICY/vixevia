@@ -34,6 +34,7 @@ class Chatbot:
         self.frame = None
         self.vision_chat_ready = threading.Event()
         self.executor = ThreadPoolExecutor(max_workers=2)
+        self.audio_ready = False
 
     def _load_from_file(self, filename):
         with open(filename, 'r') as f:
@@ -146,7 +147,8 @@ class Chatbot:
                 speaker="",
                 transpose=7,
             )
-            self._play_audio(self.CONFIG["FILES"]["RESPONSE_WAV"])
+            self.audio_ready = True
+            # self._play_audio(self.CONFIG["FILES"]["RESPONSE_WAV"])
         self._save_convo()
         self.vision_chat = ""
 
@@ -174,6 +176,8 @@ class Chatbot:
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
 
         while True:
+            while self.audio_ready:
+                time.sleep(0.1)
             user_input = {
                 "role": "user",
                 "parts": [
