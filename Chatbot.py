@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor
 from google.generativeai.types import generation_types
 from gtts import gTTS
 from so_vits_svc_fork.inference.main import infer
-from transformers import pipeline
 
 from Config import Config
 

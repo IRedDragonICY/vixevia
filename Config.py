@@ -25,6 +25,6 @@ class Config:
         "CONFIG_PATH": "model/audio/audio.json",
     }
     DEVICE = "cuda"
-
+    MAX_CHUNK_SECONDS = 35
     def __getitem__(self, item):
         return getattr(self, item)
