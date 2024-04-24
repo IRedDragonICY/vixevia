@@ -22,7 +22,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Mount model files
 app.mount("/model", StaticFiles(directory="model"), name="model")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
-chatbot = Chatbot()  # Move this line here
+chatbot = Chatbot()
 
 @app.get("/")
 async def read_items():

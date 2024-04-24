@@ -1,3 +1,4 @@
+# Chatbot.py
 import pickle
 import re
 import threading
@@ -25,7 +26,7 @@ class Chatbot:
         self.system_prompt = self._load_from_file(self.CONFIG.FILES["SYSTEM_PROMPT"])
         self.vision_prompt = self._load_from_file(self.CONFIG.FILES["VISION_PROMPT"])
         self.generation_config, self.safety_settings = self._model_config()
-        self.model = self._get_model()
+        self.model = self._get_text_model()
         self.convo = self._get_convo()
         if not self.convo.history:
             self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
@@ -56,45 +57,27 @@ class Chatbot:
         genai.configure(api_key=selected_api_keys[self.api_key_index])
         self.api_key_index = (self.api_key_index + 1) % len(selected_api_keys)
 
-    def _get_model(self):
-        selected_api_keys = self.api_keys[:3]
+    def _get_model(self, api_keys_range, model_name, config):
+        selected_api_keys = self.api_keys[api_keys_range]
         self._configure_genai(selected_api_keys)
         return genai.GenerativeModel(
-            model_name=self.CONFIG["MODEL_NAME"],
-            generation_config=self.generation_config,
+            model_name=model_name,
+            generation_config=config,
             safety_settings=self.safety_settings,
             system_instruction=self.system_prompt
         )
 
-    def _get_vision_model(self):
-        selected_api_keys = self.api_keys[3:7]
-        self._configure_genai(selected_api_keys)
-        return genai.GenerativeModel(
-            model_name=self.CONFIG["VISION_CONFIG"]["MODEL_NAME"],
-            generation_config=generation_types.GenerationConfig(
-                temperature=self.CONFIG["VISION_CONFIG"]["TEMPERATURE"],
-                top_p=self.CONFIG["VISION_CONFIG"]["TOP_P"],
-                top_k=self.CONFIG["VISION_CONFIG"]["TOP_K"],
-                max_output_tokens=self.CONFIG["VISION_CONFIG"]["MAX_OUTPUT_TOKENS"],
-            ),
-            safety_settings=self.safety_settings
-        )
+    def _get_text_model(self):
+        return self._get_model(slice(0, 3), self.CONFIG["MODEL_NAME"], self.generation_config)
 
-    def _generate_vision_content(self):
-        print(f"{datetime.now().strftime('%H:%M:%S')} Video is ready")
-        while True:
-            if self.frame is None:
-                continue
-            time.sleep(2)
-            ret, buffer = cv2.imencode('.jpg', self.frame)
-            prompt_parts = [{"mime_type": "image/jpeg", "data": buffer.tobytes()}, self.vision_prompt]
-            try:
-                response = self.vision_model.generate_content(prompt_parts, safety_settings=self.safety_settings)
-                if response.parts:
-                    self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
-                    self.vision_chat_ready.set()
-            except ValueError:
-                continue
+    def _get_vision_model(self):
+        return self._get_model(slice(3, 7), self.CONFIG["VISION_CONFIG"]["MODEL_NAME"],
+                               generation_types.GenerationConfig(
+                                   temperature=self.CONFIG["VISION_CONFIG"]["TEMPERATURE"],
+                                   top_p=self.CONFIG["VISION_CONFIG"]["TOP_P"],
+                                   top_k=self.CONFIG["VISION_CONFIG"]["TOP_K"],
+                                   max_output_tokens=self.CONFIG["VISION_CONFIG"]["MAX_OUTPUT_TOKENS"],
+                               ))
 
     def _get_convo(self):
         history = []
@@ -148,7 +131,6 @@ class Chatbot:
                 transpose=7,
             )
             self.audio_ready = True
-            # self._play_audio(self.CONFIG["FILES"]["RESPONSE_WAV"])
         self._save_convo()
         self.vision_chat = ""
 
@@ -168,6 +150,22 @@ class Chatbot:
         finally:
             cap.release()
             cv2.destroyAllWindows()
+
+    def _generate_vision_content(self):
+        print(f"{datetime.now().strftime('%H:%M:%S')} Video is ready")
+        while True:
+            if self.frame is None:
+                continue
+            time.sleep(2)
+            ret, buffer = cv2.imencode('.jpg', self.frame)
+            prompt_parts = [{"mime_type": "image/jpeg", "data": buffer.tobytes()}, self.vision_prompt]
+            try:
+                response = self.vision_model.generate_content(prompt_parts, safety_settings=self.safety_settings)
+                if response.parts:
+                    self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
+                    self.vision_chat_ready.set()
+            except ValueError:
+                continue
 
     def start_chat(self):
         self.executor.submit(self._capture_video)
