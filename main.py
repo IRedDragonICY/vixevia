@@ -18,7 +18,7 @@ app = FastAPI()
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
+app.mount("/js", StaticFiles(directory="static/js"), name="js")
 # Mount model files
 app.mount("/model", StaticFiles(directory="model"), name="model")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
