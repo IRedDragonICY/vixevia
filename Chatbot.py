@@ -133,24 +133,42 @@ class Chatbot:
         self._save_convo()
         self.vision_chat = ""
 
-    def process_frame(self, frame):
-        self.frame = frame
-        self._generate_vision_content()
+    def _capture_video(self):
+        print(f"{datetime.now().strftime('%H:%M:%S')} Initializing...")
+        cap = cv2.VideoCapture(0)
+        last_saved_time = time.time()
+        try:
+            while True:
+                ret, self.frame = cap.read()
+                if not ret:
+                    break
+                if time.time() - last_saved_time >= 1:
+                    last_saved_time = time.time()
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        finally:
+            cap.release()
+            cv2.destroyAllWindows()
 
     def _generate_vision_content(self):
-        if self.frame is None:
-            return
-        ret, buffer = cv2.imencode('.jpg', self.frame)
-        prompt_parts = [{"mime_type": "image/jpeg", "data": buffer.tobytes()}, self.vision_prompt]
-        try:
-            response = self.vision_model.generate_content(prompt_parts, safety_settings=self.safety_settings)
-            if response.parts:
-                self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
-                self.vision_chat_ready.set()
-        except ValueError:
-            return
+        print(f"{datetime.now().strftime('%H:%M:%S')} Video is ready")
+        while True:
+            if self.frame is None:
+                continue
+            time.sleep(2)
+            ret, buffer = cv2.imencode('.jpg', self.frame)
+            prompt_parts = [{"mime_type": "image/jpeg", "data": buffer.tobytes()}, self.vision_prompt]
+            try:
+                response = self.vision_model.generate_content(prompt_parts, safety_settings=self.safety_settings)
+                if response.parts:
+                    self.vision_chat += f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Vixevia Melihat:({response.text}))"
+                    self.vision_chat_ready.set()
+            except ValueError:
+                continue
 
     def start_chat(self):
+        self.executor.submit(self._capture_video)
+        self.executor.submit(self._generate_vision_content)
         self.vision_chat_ready.wait()
         print(f"{datetime.now().strftime('%H:%M:%S')} Vision is ready")
 
