@@ -3,9 +3,12 @@ SpeechRecognition
 so-vits-svc-fork
 PyAudio
 simpleaudio
-torch~=2.2.1+cu121
+torch
 transformers
 gTTS
 opencv-python
 fastapi
 uvicorn
+python-multipart
+numpy
+starlette

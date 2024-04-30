@@ -1,77 +1,114 @@
-var audioPlaying = false;
+const app = new PIXI.Application({
+    view: document.getElementById("canvas"),
+    autoStart: true,
+    resizeTo: window
+});
 
-const cubism2Model = "/model/live2d/vixevia.model3.json";
-(async function main() {
-    const app = new PIXI.Application({
-        view: document.getElementById("canvas"),
-        autoStart: true,
-        resizeTo: window
-    });
+let model;
+loadModel().then((result) => model = result);
+let video = setupVideo();
+setInterval(captureFrame, 1000);
 
+document.addEventListener('click', initiateAudioPlay);
+
+let audioPlaying = false;
+const audio_link = "/temp/response.wav";
+let volume = 1;
+
+async function loadModel() {
+    const cubism2Model = "/model/live2d/vixevia.model3.json";
     const model = await PIXI.live2d.Live2DModel.from(cubism2Model);
     app.stage.addChild(model);
     model.scale.set(0.3);
-    const audio_link = "/temp/response.wav";
-    var volume = 1;
+    return model;
+}
 
-    const setMouthOpenY = v=>{
-        v = Math.max(0,Math.min(1,v));
-        model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY',v);
-    }
+function setupVideo() {
+    let video = document.createElement('video');
+    video.autoplay = true;
 
-    document.addEventListener('click', async function() {
-        if (audioPlaying)
-            return;
-        document.removeEventListener('click', arguments.callee);
-        playAudioWhenReady();
-    });
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+            video.srcObject = stream;
+        })
+        .catch(function(err) {
+            console.log("Something went wrong!", err);
+        });
 
-    async function checkAudioStatus() {
-        const response = await fetch('/audio_status');
-        const status = await response.json();
-        return status.audio_ready;
-    }
+    return video;
+}
 
-    async function playAudioWhenReady() {
-        while (true) {
-            const audioReady = await checkAudioStatus();
-            if (audioReady) {
-                audioPlaying = true;
+function captureFrame() {
+    let canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(sendFrameToServer, 'image/jpeg');
+}
 
-                var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                var analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 32;
-                var dataArray = new Uint8Array(analyser.frequencyBinCount);
+function sendFrameToServer(blob) {
+    let formData = new FormData();
+    formData.append('image', blob, 'frame.jpg');
+    fetch('/upload_frame', {method: 'POST', body: formData}).then(response => console.log(response));
+}
 
-                const audio = new Audio(audio_link);
-                audio.volume = volume;
-                audio.play();
+async function initiateAudioPlay() {
+    if (audioPlaying)
+        return;
+    document.removeEventListener('click', initiateAudioPlay);
+    await playAudioWhenReady();
+}
 
-                var source = audioCtx.createMediaElementSource(audio);
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
+async function checkAudioStatus() {
+    const response = await fetch('/audio_status');
+    const status = await response.json();
+    return status.audio_ready;
+}
 
-                function analyseVolume() {
-                    analyser.getByteFrequencyData(dataArray);
-                    var total = dataArray.reduce((prev, curr) => prev + curr, 0);
-                    var avg = total / dataArray.length;
-                    var volume = avg / 255;
-                    setMouthOpenY(volume);
-                    if (!audio.paused) {
-                        requestAnimationFrame(analyseVolume);
-                    }
+async function playAudioWhenReady() {
+    while (true) {
+        const audioReady = await checkAudioStatus();
+        if (audioReady) {
+            audioPlaying = true;
+
+            let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 32;
+            let dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            const audio = new Audio(audio_link);
+            audio.volume = volume;
+            await audio.play();
+
+            let source = audioCtx.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            function analyseVolume() {
+                analyser.getByteFrequencyData(dataArray);
+                let total = dataArray.reduce((prev, curr) => prev + curr, 0);
+                let avg = total / dataArray.length;
+                let volume = avg / 255;
+                setMouthOpenY(volume);
+                if (!audio.paused) {
+                    requestAnimationFrame(analyseVolume);
                 }
-                analyseVolume();
-
-                audio.onended = async function() {
-                    await fetch('/reset_audio_status');
-                    audioPlaying = false;
-                    playAudioWhenReady();
-                }
-
-                break;
             }
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            analyseVolume();
+
+            audio.onended = async function() {
+                await fetch('/reset_audio_status');
+                audioPlaying = false;
+                await playAudioWhenReady();
+            }
+
+            break;
         }
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
-})();
+}
+
+function setMouthOpenY(v){
+    v = Math.max(0,Math.min(1,v));
+    model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY',v);
+}

@@ -15,4 +15,7 @@
     <orderEntry type="library" name="cubism2" level="application" />
     <orderEntry type="library" name="cubism4" level="application" />
   </component>
+  <component name="PackageRequirementsSettings">
+    <option name="versionSpecifier" value="Don't specify version" />
+  </component>
 </module>
