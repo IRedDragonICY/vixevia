@@ -48,10 +48,16 @@ async def reset_audio_status():
 
 @app.post("/upload_frame")
 async def upload_frame(image: UploadFile = File(...)):
-    image_bytes = await image.read()
-    image_array = np.frombuffer(image_bytes, np.uint8)
-    frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-    chatbot.process_frame(frame)
+    try:
+        image_bytes = await image.read()
+        image_array = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        chatbot.process_frame(frame)
+    except Exception as e:
+        print(f"Error processing frame: {e}")
+        return {"status": "error", "message": str(e)}
+    return {"status": "success"}
+
 
 
 def run_server():

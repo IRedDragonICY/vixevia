@@ -7,7 +7,6 @@ const app = new PIXI.Application({
 let model;
 loadModel().then((result) => model = result);
 let video = setupVideo();
-setInterval(captureFrame, 1000);
 
 document.addEventListener('click', initiateAudioPlay);
 
@@ -35,15 +34,31 @@ function setupVideo() {
             console.log("Something went wrong!", err);
         });
 
+    video.addEventListener('canplaythrough', function() {
+        setInterval(captureFrame, 1000);
+    }, false);
+
     return video;
 }
 
 function captureFrame() {
-    let canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(sendFrameToServer, 'image/jpeg');
+    if (video.readyState === 4) {
+        let canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        new Promise((resolve, reject) => {
+            canvas.toBlob(blob => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('Blob creation failed'));
+                }
+            }, 'image/jpeg');
+        })
+            .then(sendFrameToServer)
+            .catch(error => console.error(error));
+    }
 }
 
 function sendFrameToServer(blob) {
@@ -104,7 +119,7 @@ async function playAudioWhenReady() {
 
             break;
         }
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
     }
 }
 
