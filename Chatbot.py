@@ -5,7 +5,6 @@ from pathlib import Path
 
 import cv2
 import google.generativeai as genai
-import speech_recognition as sr
 from google.generativeai.types import generation_types
 from gtts import gTTS
 from so_vits_svc_fork.inference.main import infer
@@ -74,16 +73,6 @@ class Chatbot:
         with open(self.CONFIG["FILES"]["SESSION"], 'wb') as f:
             pickle.dump(self.convo.history, f)
 
-    def _user_input_speech(self):
-        r = sr.Recognizer()
-        r.energy_threshold = 32000
-        with sr.Microphone() as source:
-            r.adjust_for_ambient_noise(source)
-            print("Listening...")
-            audio_bytes = r.listen(source).get_wav_data()
-            print("Processing...")
-            return audio_bytes
-
     def _handle_response(self, user_input):
         for _ in range(10):
             try:
@@ -116,21 +105,18 @@ class Chatbot:
     def process_frame(self, frame):
         self.frames.append(frame)
 
-    def start_chat(self):
-        while True:
-            while self.audio_ready:
-                time.sleep(0.1)
-            user_input = {
-                "role": "user",
-                "parts": [
-                    {"text": "Penglihatan:"},
-                    *[
-                        {"mime_type": "image/jpeg", "data": cv2.imencode('.jpg', frame)[1].tobytes()}
-                        for frame in self.frames
-                    ],
-                    {"text": "Pendengaran:"},
-                    {"mime_type": "audio/wav", "data": self._user_input_speech()},
+    def process_audio(self, audio_bytes):
+        user_input = {
+            "role": "user",
+            "parts": [
+                {"text": "Penglihatan:"},
+                *[
+                    {"mime_type": "image/jpeg", "data": cv2.imencode('.jpg', frame)[1].tobytes()}
+                    for frame in self.frames
                 ],
-            }
-            self._handle_response(user_input)
-            self.frames = []
+                {"text": "Pendengaran:"},
+                {"mime_type": "audio/wav", "data": audio_bytes},
+            ],
+        }
+        self._handle_response(user_input)
+        self.frames = []

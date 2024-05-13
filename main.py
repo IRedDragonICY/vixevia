@@ -1,7 +1,7 @@
 import logging
 import webbrowser
 import threading
-
+import torch
 from fastapi import FastAPI, File, UploadFile
 
 from fastapi.responses import HTMLResponse
@@ -33,6 +33,7 @@ async def read_items():
     return HTMLResponse(content=html_content, status_code=200)
 
 
+
 @app.get("/audio_status")
 async def get_audio_status():
     return {"audio_ready": chatbot.audio_ready}
@@ -54,6 +55,13 @@ async def upload_frame(image: UploadFile = File(...)):
     except Exception as e:
         print(f"Error processing frame: {e}")
 
+@app.post("/upload_audio")
+async def upload_audio(audio: UploadFile = File(...)):
+    try:
+        audio_bytes = await audio.read()
+        chatbot.process_audio(audio_bytes)
+    except Exception as e:
+        print(f"Error processing audio: {e}")
 
 def run_server():
     import uvicorn
@@ -63,4 +71,3 @@ def run_server():
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
     webbrowser.open("http://localhost:8000/")
-    chatbot.start_chat()
