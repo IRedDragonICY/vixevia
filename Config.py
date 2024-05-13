@@ -7,13 +7,6 @@ class Config:
     TOP_K = 1
     TOP_P = 1
     TEMPERATURE = 0.85
-    VISION_CONFIG = {
-        "MODEL_NAME": "gemini-1.5-pro-latest",
-        "TEMPERATURE": 0.3,
-        "TOP_P": 1,
-        "TOP_K": 32,
-        "MAX_OUTPUT_TOKENS": 4096,
-    }
     FILES = {
         "API_KEY": 'api_key.txt',
         "SYSTEM_PROMPT": 'system_prompt.txt',

@@ -19,10 +19,8 @@ logging.disable(logging.ERROR)
 
 app = FastAPI()
 
-# Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/js", StaticFiles(directory="static/js"), name="js")
-# Mount model files
 app.mount("/model", StaticFiles(directory="model"), name="model")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
 chatbot = Chatbot()
@@ -55,9 +53,6 @@ async def upload_frame(image: UploadFile = File(...)):
         chatbot.process_frame(frame)
     except Exception as e:
         print(f"Error processing frame: {e}")
-        return {"status": "error", "message": str(e)}
-    return {"status": "success"}
-
 
 
 def run_server():
