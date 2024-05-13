@@ -7,7 +7,6 @@ from pathlib import Path
 
 import cv2
 import google.generativeai as genai
-import simpleaudio as sa
 import speech_recognition as sr
 from concurrent.futures import ThreadPoolExecutor
 from google.generativeai.types import generation_types
@@ -102,8 +101,7 @@ class Chatbot:
             print("Processing...")
             return audio_bytes
 
-    def _play_audio(self, file_path):
-        sa.WaveObject.from_wave_file(file_path).play().wait_done()
+
 
     def _handle_response(self, user_input):
         for _ in range(10):
