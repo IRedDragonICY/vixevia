@@ -91,6 +91,8 @@ class Chatbot:
                 break
             except Exception as e:
                 print(f"Exception occurred: {e}. Retrying...")
+                self.api_key_index = (self.api_key_index + 1) % len(self.api_keys)
+                self._configure_genai(self.api_keys)
         else:
             print("Failed to send message after 3 attempts. Exiting.")
             return
@@ -110,7 +112,6 @@ class Chatbot:
             )
             self.audio_ready = True
         self._save_convo()
-        self.vision_chat = ""
 
     def process_frame(self, frame):
         self.frames.append(frame)

@@ -62,10 +62,5 @@ def run_server():
 
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
-    import time
-
-    time.sleep(1)
-
     webbrowser.open("http://localhost:8000/")
-
     chatbot.start_chat()
