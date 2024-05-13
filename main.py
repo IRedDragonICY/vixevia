@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 
 from Chatbot import Chatbot
+from pyngrok import ngrok
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
@@ -67,6 +68,19 @@ def run_server():
     uvicorn.run(app, host="localhost", port=8000)
 
 
+def run_server():
+    import uvicorn
+    uvicorn.run(app, host="localhost", port=8000)
+
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
-    webbrowser.open("http://localhost:8000/")
+
+    public_url = ngrok.connect(8000)
+    print(f"Public URL: {public_url}")
+    ngrok_process = ngrok.get_ngrok_process()
+
+    try:
+        ngrok_process.proc.wait()
+    except KeyboardInterrupt:
+        print(" Shutting down server.")
+        ngrok.kill()
