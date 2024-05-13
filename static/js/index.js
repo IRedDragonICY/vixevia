@@ -71,9 +71,7 @@ async function initiateAudioPlay() {
 }
 
 async function checkAudioStatus() {
-    const response = await fetch('/audio_status');
-    const status = await response.json();
-    return status.audio_ready;
+    return (await fetch('/audio_status').then(res => res.json())).audio_ready;
 }
 
 async function playAudioWhenReady() {

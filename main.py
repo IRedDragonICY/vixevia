@@ -1,15 +1,14 @@
 import logging
-import webbrowser
 import threading
-import torch
-from fastapi import FastAPI, File, UploadFile
+import webbrowser
 
+import cv2
+import numpy as np
+from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 
 from Chatbot import Chatbot
-import cv2
-import numpy as np
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
@@ -33,7 +32,6 @@ async def read_items():
     return HTMLResponse(content=html_content, status_code=200)
 
 
-
 @app.get("/audio_status")
 async def get_audio_status():
     return {"audio_ready": chatbot.audio_ready}
@@ -49,11 +47,11 @@ async def reset_audio_status():
 async def upload_frame(image: UploadFile = File(...)):
     try:
         image_bytes = await image.read()
-        image_array = np.frombuffer(image_bytes, np.uint8)
-        frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        frame = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
         chatbot.process_frame(frame)
     except Exception as e:
         print(f"Error processing frame: {e}")
+
 
 @app.post("/upload_audio")
 async def upload_audio(audio: UploadFile = File(...)):
@@ -62,6 +60,7 @@ async def upload_audio(audio: UploadFile = File(...)):
         chatbot.process_audio(audio_bytes)
     except Exception as e:
         print(f"Error processing audio: {e}")
+
 
 def run_server():
     import uvicorn
