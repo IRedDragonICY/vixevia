@@ -25,24 +25,24 @@ chatbot = Chatbot()
 
 
 @app.get("/")
-async def read_items():
+async def index():
     with open('static/index.html', 'r') as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
 
-@app.get("/audio_status")
+@app.get("/api/audio_status")
 async def get_audio_status():
     return {"audio_ready": chatbot.audio_ready}
 
 
-@app.get("/reset_audio_status")
+@app.post("/api/reset_audio_status")
 async def reset_audio_status():
     chatbot.audio_ready = False
     return {"audio_ready": chatbot.audio_ready}
 
 
-@app.post("/upload_frame")
+@app.post("/api/upload_frame")
 async def upload_frame(image: UploadFile = File(...)):
     try:
         image_bytes = await image.read()
@@ -52,7 +52,7 @@ async def upload_frame(image: UploadFile = File(...)):
         print(f"Error processing frame: {e}")
 
 
-@app.post("/upload_audio")
+@app.post("/api/upload_audio")
 async def upload_audio(audio: UploadFile = File(...)):
     try:
         audio_bytes = await audio.read()
@@ -65,10 +65,6 @@ def run_server():
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
 
-
-def run_server():
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
 
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()

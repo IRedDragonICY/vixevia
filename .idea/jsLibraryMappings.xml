@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="JavaScriptLibraryMappings">
-    <file url="file://$PROJECT_DIR$" libraries="{cubism2, cubism4, index, live2d, live2dcubismcore, pixi-live2d-display, pixi-sound, pixi.js}" />
+    <file url="file://$PROJECT_DIR$" libraries="{cubism4, live2d, live2dcubismcore, pixi.js}" />
   </component>
 </project>

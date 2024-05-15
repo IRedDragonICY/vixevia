@@ -106,12 +106,12 @@ class Chatbot:
         user_input = {
             "role": "user",
             "parts": [
-                {"text": "Penglihatan:"},
+                {"text": "Penglihatan Vixevia:"},
                 *[
                     {"mime_type": "image/jpeg", "data": cv2.imencode('.jpg', frame)[1].tobytes()}
                     for frame in self.frames
                 ],
-                {"text": "Pendengaran:"},
+                {"text": "Pendengaran Vixevia:"},
                 {"mime_type": "audio/wav", "data": audio_bytes},
             ],
         }

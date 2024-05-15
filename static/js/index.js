@@ -2,9 +2,12 @@ const app = new PIXI.Application({ view: document.getElementById("canvas"), auto
 const audio_link = "/temp/response.wav";
 const statusDiv = document.getElementById('status');
 
-let model, video, audioPlaying = false, volume = 1;
+let model, video, audioPlaying = false, volume = 1, blinkInterval;
 
-loadModel().then(result => model = result);
+loadModel().then(result => {
+    model = result;
+    startBlinking();
+});
 setupVideo();
 
 async function loadModel() {
@@ -35,7 +38,7 @@ function captureFrame() {
 function sendFrameToServer(blob) {
     let formData = new FormData();
     formData.append('image', blob, 'frame.jpg');
-    fetch('/upload_frame', { method: 'POST', body: formData }).then(console.log);
+    fetch('/api/upload_frame', { method: 'POST', body: formData }).then(console.log);
 }
 
 async function initiateAudioPlay() {
@@ -43,7 +46,7 @@ async function initiateAudioPlay() {
 }
 
 async function checkAudioStatus() {
-    return (await fetch('/audio_status').then(res => res.json())).audio_ready;
+    return (await fetch('/api/audio_status').then(res => res.json())).audio_ready;
 }
 
 async function playAudioWhenReady() {
@@ -69,7 +72,7 @@ function setupAnalyser(audio) {
     analyser.connect(audioCtx.destination);
     analyseVolume(analyser, dataArray, audio);
     audio.onended = async function() {
-        await fetch('/reset_audio_status');
+        await fetch('/api/reset_audio_status', { method: 'POST' });
         audioPlaying = false;
         initiateAudioPlay();
         recognition.start();
@@ -110,9 +113,38 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 function sendAudioToServer(blob) {
     let formData = new FormData();
     formData.append('audio', blob, 'audio.wav');
-    fetch('/upload_audio', { method: 'POST', body: formData })
+    fetch('/api/upload_audio', { method: 'POST', body: formData })
         .then(response => { console.log(response); statusDiv.innerHTML = ""; })
         .catch(error => console.error('Error uploading audio:', error));
 }
 
 initiateAudioPlay();
+
+function blink() {
+    let blinkValue = 1;
+    let blinkSpeed = 0.1;
+    const blinkInterval = setInterval(() => {
+        blinkValue -= blinkSpeed;
+        if (blinkValue <= 0) {
+            blinkValue = 0;
+            clearInterval(blinkInterval);
+            setTimeout(() => {
+                const closeEyeInterval = setInterval(() => {
+                    blinkValue += blinkSpeed;
+                    if (blinkValue >= 1) {
+                        blinkValue = 1;
+                        clearInterval(closeEyeInterval);
+                    }
+                    model.internalModel.coreModel.setParameterValueById('ParamEyeLOpen', blinkValue);
+                    model.internalModel.coreModel.setParameterValueById('ParamEyeROpen', blinkValue);
+                }, 10);
+            }, 100);
+        }
+        model.internalModel.coreModel.setParameterValueById('ParamEyeLOpen', blinkValue);
+        model.internalModel.coreModel.setParameterValueById('ParamEyeROpen', blinkValue);
+    }, 10);
+}
+
+function startBlinking() {
+    setInterval(blink, Math.random() * 4000 + 2000);
+}

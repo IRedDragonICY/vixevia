@@ -14,6 +14,10 @@
     <orderEntry type="library" name="index" level="application" />
     <orderEntry type="library" name="cubism2" level="application" />
     <orderEntry type="library" name="cubism4" level="application" />
+    <orderEntry type="library" name="live2dcubismcore" level="application" />
+    <orderEntry type="library" name="pixi.js" level="application" />
+    <orderEntry type="library" name="cubism4" level="application" />
+    <orderEntry type="library" name="live2d" level="application" />
   </component>
   <component name="PackageRequirementsSettings">
     <option name="versionSpecifier" value="Don't specify version" />
