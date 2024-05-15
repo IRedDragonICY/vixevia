@@ -1,5 +1,5 @@
 class Config:
-    MODEL_NAME = "gemini-1.5-pro-latest"
+    MODEL_NAME = "gemini-1.5-flash-latest"
     HARM_CATEGORIES = ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT",
                        "HARM_CATEGORY_DANGEROUS_CONTENT"]
     BLOCK_NONE = "BLOCK_NONE"
@@ -11,7 +11,6 @@ class Config:
     class FILES:
         API_KEY = 'api_key.txt'
         SYSTEM_PROMPT = 'system_prompt.txt'
-        VISION_PROMPT = 'vision_prompt.txt'
         SESSION = 'session.pkl'
         RESPONSE_MP3 = "temp/response.mp3"
         RESPONSE_WAV = "temp/response.wav"
