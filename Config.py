@@ -7,17 +7,19 @@ class Config:
     TOP_K = 1
     TOP_P = 1
     TEMPERATURE = 0.85
-    FILES = {
-        "API_KEY": 'api_key.txt',
-        "SYSTEM_PROMPT": 'system_prompt.txt',
-        "VISION_PROMPT": 'vision_prompt.txt',
-        "SESSION": 'session.pkl',
-        "RESPONSE_MP3": "temp/response.mp3",
-        "RESPONSE_WAV": "temp/response.wav",
-        "MODEL_PATH": "model/audio/audio.pth",
-        "CONFIG_PATH": "model/audio/audio.json",
-    }
+
+    class FILES:
+        API_KEY = 'api_key.txt'
+        SYSTEM_PROMPT = 'system_prompt.txt'
+        VISION_PROMPT = 'vision_prompt.txt'
+        SESSION = 'session.pkl'
+        RESPONSE_MP3 = "temp/response.mp3"
+        RESPONSE_WAV = "temp/response.wav"
+        MODEL_PATH = "model/audio/audio.pth"
+        CONFIG_PATH = "model/audio/audio.json"
+
     DEVICE = "cuda"
     MAX_CHUNK_SECONDS = 35
+
     def __getitem__(self, item):
         return getattr(self, item)
