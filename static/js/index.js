@@ -1,73 +1,45 @@
-const app = new PIXI.Application({
-    view: document.getElementById("canvas"),
-    autoStart: true,
-    resizeTo: window
-});
-
-let model;
-loadModel().then((result) => model = result);
-
-let video = setupVideo();
-
-let audioPlaying = false;
+const app = new PIXI.Application({ view: document.getElementById("canvas"), autoStart: true, resizeTo: window });
 const audio_link = "/temp/response.wav";
-let volume = 1;
 const statusDiv = document.getElementById('status');
 
+let model, video, audioPlaying = false, volume = 1;
+
+loadModel().then(result => model = result);
+setupVideo();
+
 async function loadModel() {
-    const cubism2Model = "/model/live2d/vixevia.model3.json";
-    const model = await PIXI.live2d.Live2DModel.from(cubism2Model);
+    const model = await PIXI.live2d.Live2DModel.from("/model/live2d/vixevia.model3.json");
     app.stage.addChild(model);
     model.scale.set(0.3);
     return model;
 }
 
 function setupVideo() {
-    let video = document.createElement('video');
+    video = document.createElement('video');
     video.autoplay = true;
     navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function(stream) {
-            video.srcObject = stream;
-        })
-        .catch(function(err) {
-            console.log("Something went wrong!", err);
-        });
-    video.addEventListener('canplaythrough', function() {
-        setInterval(captureFrame, 1000);
-    }, false);
-    return video;
+        .then(stream => video.srcObject = stream)
+        .catch(err => console.log("Something went wrong!", err));
+    video.addEventListener('canplaythrough', () => setInterval(captureFrame, 1000), false);
 }
 
 function captureFrame() {
-    if (video.readyState === 4) {
-        let canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        new Promise((resolve, reject) => {
-            canvas.toBlob(blob => {
-                if (blob) {
-                    resolve(blob);
-                } else {
-                    reject(new Error('Blob creation failed'));
-                }
-            }, 'image/jpeg');
-        })
-            .then(sendFrameToServer)
-            .catch(error => console.error(error));
-    }
+    if (video.readyState !== 4) return;
+    let canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => blob ? sendFrameToServer(blob) : console.error('Blob creation failed'), 'image/jpeg');
 }
 
 function sendFrameToServer(blob) {
     let formData = new FormData();
     formData.append('image', blob, 'frame.jpg');
-    fetch('/upload_frame', {method: 'POST', body: formData}).then(response => console.log(response));
+    fetch('/upload_frame', { method: 'POST', body: formData }).then(console.log);
 }
 
 async function initiateAudioPlay() {
-    if (audioPlaying)
-        return;
-    await playAudioWhenReady();
+    if (!audioPlaying) await playAudioWhenReady();
 }
 
 async function checkAudioStatus() {
@@ -76,92 +48,70 @@ async function checkAudioStatus() {
 
 async function playAudioWhenReady() {
     while (true) {
-        const audioReady = await checkAudioStatus();
-        if (audioReady) {
+        if (await checkAudioStatus()) {
             audioPlaying = true;
-            let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            let analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 32;
-            let dataArray = new Uint8Array(analyser.frequencyBinCount);
-            const audio = new Audio(audio_link);
+            let audio = new Audio(audio_link);
             audio.volume = volume;
             await audio.play();
-            let source = audioCtx.createMediaElementSource(audio);
-            source.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            function analyseVolume() {
-                analyser.getByteFrequencyData(dataArray);
-                let total = dataArray.reduce((prev, curr) => prev + curr, 0);
-                let avg = total / dataArray.length;
-                let volume = avg / 255;
-                setMouthOpenY(volume);
-                if (!audio.paused) {
-                    requestAnimationFrame(analyseVolume);
-                }
-            }
-            analyseVolume();
-            audio.onended = async function() {
-                await fetch('/reset_audio_status');
-                audioPlaying = false;
-                initiateAudioPlay();
-                recognition.start();
-            }
+            setupAnalyser(audio);
             break;
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
 }
 
+function setupAnalyser(audio) {
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let analyser = audioCtx.createAnalyser();
+    let dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    analyseVolume(analyser, dataArray, audio);
+    audio.onended = async function() {
+        await fetch('/reset_audio_status');
+        audioPlaying = false;
+        initiateAudioPlay();
+        recognition.start();
+    }
+}
+
+function analyseVolume(analyser, dataArray, audio) {
+    analyser.getByteFrequencyData(dataArray);
+    let total = dataArray.reduce((prev, curr) => prev + curr, 0);
+    let volume = total / dataArray.length / 255;
+    setMouthOpenY(volume);
+    if (!audio.paused) requestAnimationFrame(() => analyseVolume(analyser, dataArray, audio));
+}
+
 function setMouthOpenY(v){
-    v = Math.max(0,Math.min(1,v));
-    model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY',v);
+    model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', Math.max(0,Math.min(1,v)));
 }
 
 const recognition = new webkitSpeechRecognition();
 recognition.continuous = true;
 recognition.interimResults = true;
-recognition.onstart = function() {
-    statusDiv.innerHTML = "Listening...";
-    mediaRecorder.start();
-};
-recognition.onend = function() {
-    statusDiv.innerHTML = "Processing...";
-    mediaRecorder.stop();
-};
-recognition.onerror = function(event) {
-    console.error('Speech recognition error:', event.error);
-    statusDiv.innerHTML = "";
-};
+recognition.onstart = () => { statusDiv.innerHTML = "Listening..."; mediaRecorder.start(); };
+recognition.onend = () => { statusDiv.innerHTML = "Processing..."; mediaRecorder.stop(); };
+recognition.onerror = event => { console.error('Speech recognition error:', event.error); statusDiv.innerHTML = ""; };
 
-const constraints = { audio: true };
-let mediaRecorder;
-let chunks = [];
+let mediaRecorder, chunks = [];
 
-navigator.mediaDevices.getUserMedia(constraints)
+navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
         mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = event => {
-            chunks.push(event.data);
-        };
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(chunks, { type: 'audio/wav' });
-            chunks = [];
-            sendAudioToServer(audioBlob);
-        };
+        mediaRecorder.ondataavailable = event => chunks.push(event.data);
+        mediaRecorder.onstop = () => sendAudioToServer(new Blob(chunks, { type: 'audio/wav' }));
+        chunks = [];
         recognition.start();
     })
-    .catch(err => {
-        console.error('Error accessing microphone:', err);
-    });
+    .catch(err => console.error('Error accessing microphone:', err));
 
 function sendAudioToServer(blob) {
     let formData = new FormData();
     formData.append('audio', blob, 'audio.wav');
     fetch('/upload_audio', { method: 'POST', body: formData })
-        .then(response => {
-            console.log(response);
-            statusDiv.innerHTML = "";
-        })
+        .then(response => { console.log(response); statusDiv.innerHTML = ""; })
         .catch(error => console.error('Error uploading audio:', error));
 }
 
