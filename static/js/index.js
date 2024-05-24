@@ -1,21 +1,16 @@
-const app = new PIXI.Application({ view: document.getElementById("canvas"), autoStart: true, resizeTo: window });
+import { loadModel, startBlinking, setMouthOpenY } from './model.js';
+
+export const app = new PIXI.Application({ view: document.getElementById("canvas"), autoStart: true, resizeTo: window });
 const audio_link = "/temp/response.wav";
 const statusDiv = document.getElementById('status');
 
-let model, video, audioPlaying = false, volume = 1, blinkInterval;
+let model, video, audioPlaying = false, volume = 1;
 
 loadModel().then(result => {
     model = result;
     startBlinking();
 });
 setupVideo();
-
-async function loadModel() {
-    const model = await PIXI.live2d.Live2DModel.from("/model/live2d/vixevia.model3.json");
-    app.stage.addChild(model);
-    model.scale.set(0.3);
-    return model;
-}
 
 function setupVideo() {
     video = document.createElement('video');
@@ -87,10 +82,6 @@ function analyseVolume(analyser, dataArray, audio) {
     if (!audio.paused) requestAnimationFrame(() => analyseVolume(analyser, dataArray, audio));
 }
 
-function setMouthOpenY(v){
-    model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', Math.max(0,Math.min(1,v)));
-}
-
 const recognition = new webkitSpeechRecognition();
 recognition.continuous = true;
 recognition.interimResults = true;
@@ -119,32 +110,3 @@ function sendAudioToServer(blob) {
 }
 
 initiateAudioPlay();
-
-function blink() {
-    let blinkValue = 1;
-    let blinkSpeed = 0.1;
-    const blinkInterval = setInterval(() => {
-        blinkValue -= blinkSpeed;
-        if (blinkValue <= 0) {
-            blinkValue = 0;
-            clearInterval(blinkInterval);
-            setTimeout(() => {
-                const closeEyeInterval = setInterval(() => {
-                    blinkValue += blinkSpeed;
-                    if (blinkValue >= 1) {
-                        blinkValue = 1;
-                        clearInterval(closeEyeInterval);
-                    }
-                    model.internalModel.coreModel.setParameterValueById('ParamEyeLOpen', blinkValue);
-                    model.internalModel.coreModel.setParameterValueById('ParamEyeROpen', blinkValue);
-                }, 10);
-            }, 100);
-        }
-        model.internalModel.coreModel.setParameterValueById('ParamEyeLOpen', blinkValue);
-        model.internalModel.coreModel.setParameterValueById('ParamEyeROpen', blinkValue);
-    }, 10);
-}
-
-function startBlinking() {
-    setInterval(blink, Math.random() * 4000 + 2000);
-}
