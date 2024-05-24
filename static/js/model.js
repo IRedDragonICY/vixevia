@@ -1,4 +1,4 @@
-import { app } from './index.js';
+import { app } from './main.js';
 
 let model;
 

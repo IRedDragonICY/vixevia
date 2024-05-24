@@ -2,7 +2,6 @@ google-generativeai
 SpeechRecognition
 so-vits-svc-fork
 PyAudio
-simpleaudio
 torch
 transformers
 gTTS

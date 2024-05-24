@@ -2,16 +2,17 @@
 <html lang="id">
 <head>
     <title>Vixevia</title>
-
-    <!-- Load Cubism and PixiJS -->
+    <link rel="stylesheet" href="/static/style.css">
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/RaSan147/pixi-live2d-display@v0.4.0-ls-2/dist/cubism4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.7/dist/bundle.min.js"></script>
 </head>
 <body>
-<div id="status" ></div>
+<div id="status"></div>
 <canvas id="canvas"></canvas>
-<script src="js/index.js"></script>
+<script src="/static/js/main.js" type="module"></script>
 </body>
 </html>
