@@ -4,7 +4,7 @@ export const app = new PIXI.Application({ view: document.getElementById("canvas"
 const audio_link = "/temp/response.wav";
 const statusDiv = document.getElementById('status');
 
-let model, video, audioPlaying = false, volume = 1;
+let model, video, audioPlaying = false, volume = 1, isProcessing = false;
 
 loadModel().then(result => {
     model = result;
@@ -69,8 +69,9 @@ function setupAnalyser(audio) {
     audio.onended = async function() {
         await fetch('/api/reset_audio_status', { method: 'POST' });
         audioPlaying = false;
-        initiateAudioPlay();
-        recognition.start();
+        if (!isProcessing) {
+            recognition.start();
+        }
     }
 }
 
@@ -82,22 +83,17 @@ function analyseVolume(analyser, dataArray, audio) {
     if (!audio.paused) requestAnimationFrame(() => analyseVolume(analyser, dataArray, audio));
 }
 
-const recognition = new webkitSpeechRecognition();
-recognition.continuous = true;
-recognition.interimResults = true;
-recognition.onstart = () => { statusDiv.innerHTML = "Listening..."; mediaRecorder.start(); };
-recognition.onend = () => { statusDiv.innerHTML = "Processing..."; mediaRecorder.stop(); };
-recognition.onerror = event => { console.error('Speech recognition error:', event.error); statusDiv.innerHTML = ""; };
-
 let mediaRecorder, chunks = [];
 
 navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
         mediaRecorder = new MediaRecorder(stream);
         mediaRecorder.ondataavailable = event => chunks.push(event.data);
-        mediaRecorder.onstop = () => sendAudioToServer(new Blob(chunks, { type: 'audio/wav' }));
-        chunks = [];
-        recognition.start();
+        mediaRecorder.onstop = () => {
+            sendAudioToServer(new Blob(chunks, { type: 'audio/wav' }));
+            chunks = [];
+        };
+        setupVAD(stream);
     })
     .catch(err => console.error('Error accessing microphone:', err));
 
@@ -105,8 +101,32 @@ function sendAudioToServer(blob) {
     let formData = new FormData();
     formData.append('audio', blob, 'audio.wav');
     fetch('/api/upload_audio', { method: 'POST', body: formData })
-        .then(response => { console.log(response); statusDiv.innerHTML = ""; })
+        .then(response => {
+            console.log(response);
+            statusDiv.innerHTML = "";
+            isProcessing = false;
+            initiateAudioPlay();
+        })
         .catch(error => console.error('Error uploading audio:', error));
+}
+
+async function setupVAD(stream) {
+    const myvad = await vad.MicVAD.new({
+        onSpeechStart: () => {
+            if (isProcessing || audioPlaying) return;
+            console.log("Speech start detected");
+            statusDiv.innerHTML = "Listening...";
+            mediaRecorder.start();
+        },
+        onSpeechEnd: () => {
+            if (isProcessing || audioPlaying) return;
+            console.log("Speech end detected");
+            statusDiv.innerHTML = "Processing...";
+            mediaRecorder.stop();
+            isProcessing = true;
+        }
+    });
+    myvad.start();
 }
 
 initiateAudioPlay();
