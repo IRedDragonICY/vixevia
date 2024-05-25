@@ -68,7 +68,7 @@ def run_server():
 
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
-    public_url = ngrok.connect(8000)
+    public_url = ngrok.connect("8000")
     print(f"Public URL: {public_url}")
     ngrok_process = ngrok.get_ngrok_process()
 

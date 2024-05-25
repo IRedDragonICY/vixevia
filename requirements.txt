@@ -12,3 +12,4 @@ python-multipart
 numpy
 starlette
 pyngrok
+pyinstaller

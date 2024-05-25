@@ -2,3 +2,5 @@
 /session.pkl
 /model/*
 /temp/
+/build/
+/dist/
