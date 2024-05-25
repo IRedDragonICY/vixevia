@@ -16,7 +16,7 @@ let model, video, audioPlaying = false, isProcessing = false, audioLoopRunning =
     startBlinking();
     setupVideo();
     setupAudio();
-    initiateAudioPlay();
+    await initiateAudioPlay();
 })();
 
 function setupVideo() {
@@ -45,28 +45,29 @@ function sendFrameToServer(blob) {
     const formData = new FormData();
     formData.append('image', blob, 'frame.jpg');
 
-    const sendRequest = (retryCount = 0) => {
-        fetch('/api/upload_frame', { method: 'POST', body: formData })
-            .then(response => console.log('Frame uploaded:', response))
-            .catch(error => {
-                console.error('Failed to upload frame:', error);
-                if (retryCount < 3) {
-                    setTimeout(() => sendRequest(retryCount + 1), 2000);
-                }
-            });
+    const sendRequest = async (retryCount = 0) => {
+        try {
+            const response = await fetch('/api/upload_frame', { method: 'POST', body: formData });
+            console.log('Frame uploaded:', response);
+        } catch (error) {
+            console.error('Failed to upload frame:', error);
+            if (retryCount < 3) {
+                setTimeout(() => sendRequest(retryCount + 1), 2000);
+            }
+        }
     };
 
     sendRequest();
 }
 
 async function initiateAudioPlay() {
-    if (!audioPlaying && !audioLoopRunning) playAudioWhenReady();
+    if (!audioPlaying && !audioLoopRunning) await playAudioWhenReady();
 }
 
 async function playAudioWhenReady() {
     audioLoopRunning = true;
     while (!(await checkAudioStatus())) {
-        await new Promise(resolve => setTimeout(resolve, 500)); // Reduce wait time
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
     audioPlaying = true;
     const audio = new Audio(audio_link);
@@ -76,9 +77,14 @@ async function playAudioWhenReady() {
 }
 
 async function checkAudioStatus() {
-    const response = await fetch('/api/audio_status');
-    const data = await response.json();
-    return data.audio_ready;
+    try {
+        const response = await fetch('/api/audio_status');
+        const data = await response.json();
+        return data.audio_ready;
+    } catch (error) {
+        console.error('Failed to check audio status:', error);
+        return false;
+    }
 }
 
 function setupAnalyser(audio) {
@@ -92,7 +98,11 @@ function setupAnalyser(audio) {
     analyseVolume(analyser, dataArray, audio);
 
     audio.onended = async () => {
-        await fetch('/api/reset_audio_status', { method: 'POST' });
+        try {
+            await fetch('/api/reset_audio_status', { method: 'POST' });
+        } catch (error) {
+            console.error('Failed to reset audio status:', error);
+        }
         audioPlaying = false;
         if (!isProcessing) recognition.start();
     };
