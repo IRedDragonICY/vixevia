@@ -5,6 +5,7 @@ import numpy as np
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
+import os
 
 from Chatbot import Chatbot
 from pyngrok import ngrok
@@ -14,7 +15,7 @@ logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
 logging.getLogger("torch").setLevel(logging.ERROR)
 logging.disable(logging.CRITICAL)
 logging.disable(logging.ERROR)
-
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

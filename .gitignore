@@ -1,6 +1,6 @@
-/api_key.txt
-/session.pkl
-/model/*
-/temp/
 /build/
 /dist/
+/src/session.pkl
+/src/api_key.txt
+/src/model/
+/src/temp/
