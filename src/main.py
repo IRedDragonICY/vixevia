@@ -17,11 +17,9 @@ logging.disable(logging.CRITICAL)
 logging.disable(logging.ERROR)
 app = FastAPI()
 
-# Determine the absolute path to the model directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_dir = os.path.join(current_dir, "model/live2d")
 
-# Mounting the directories to serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/js", StaticFiles(directory="static/js"), name="js")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")

@@ -6,6 +6,7 @@ export async function loadModel() {
     model = await PIXI.live2d.Live2DModel.from("../model/live2d/vixevia.model3.json?v=" + new Date().getTime());
     app.stage.addChild(model);
     model.scale.set(0.3);
+    model.internalModel.coreModel.setParameterValueById('ParamMouthForm', 1);
     return model;
 }
 
