@@ -11,6 +11,7 @@ export async function loadModel() {
 }
 
 export function setMouthOpenY(v){
+    v *= 8;
     model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', Math.max(0,Math.min(1,v)));
 }
 
