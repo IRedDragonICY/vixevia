@@ -2,5 +2,8 @@
 /dist/
 /src/session.pkl
 /src/api_key.txt
-/src/model/
+/src/static/model/
 /src/temp/
+/src/model/live2d/
+/src/model/audio/audio.json
+/src/model/audio/audio.pth

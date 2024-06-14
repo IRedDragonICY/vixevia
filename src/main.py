@@ -1,11 +1,11 @@
 import logging
 import threading
+import os
 import cv2
 import numpy as np
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
-import os
 
 from Chatbot import Chatbot
 from pyngrok import ngrok
@@ -15,15 +15,19 @@ logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
 logging.getLogger("torch").setLevel(logging.ERROR)
 logging.disable(logging.CRITICAL)
 logging.disable(logging.ERROR)
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 app = FastAPI()
 
+# Determine the absolute path to the model directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+model_dir = os.path.join(current_dir, "model/live2d")
+
+# Mounting the directories to serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/js", StaticFiles(directory="static/js"), name="js")
-app.mount("/model", StaticFiles(directory="model"), name="model")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
-chatbot = Chatbot()
+app.mount("/model/live2d", StaticFiles(directory=model_dir), name="live2d")
 
+chatbot = Chatbot()
 
 @app.get("/")
 async def index():
@@ -31,17 +35,14 @@ async def index():
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
-
 @app.get("/api/audio_status")
 async def get_audio_status():
     return {"audio_ready": chatbot.audio_ready}
-
 
 @app.post("/api/reset_audio_status")
 async def reset_audio_status():
     chatbot.audio_ready = False
     return {"audio_ready": chatbot.audio_ready}
-
 
 @app.post("/api/upload_frame")
 async def upload_frame(image: UploadFile = File(...)):
@@ -52,7 +53,6 @@ async def upload_frame(image: UploadFile = File(...)):
     except Exception as e:
         print(f"Error processing frame: {e}")
 
-
 @app.post("/api/upload_audio")
 async def upload_audio(audio: UploadFile = File(...)):
     try:
@@ -61,11 +61,9 @@ async def upload_audio(audio: UploadFile = File(...)):
     except Exception as e:
         print(f"Error processing audio: {e}")
 
-
 def run_server():
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
-
 
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
