@@ -4,10 +4,10 @@ import os
 import cv2
 import numpy as np
 import uvicorn
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
-
+from starlette.middleware.cors import CORSMiddleware
 from Chatbot import Chatbot
 from pyngrok import ngrok
 
@@ -17,6 +17,14 @@ logging.getLogger("torch").setLevel(logging.ERROR)
 logging.disable(logging.CRITICAL)
 logging.disable(logging.ERROR)
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_dir = os.path.join(current_dir, "model/live2d")
@@ -32,10 +40,10 @@ ngrok_process = None
 public_url = None
 
 @app.get("/")
-async def index():
+async def index(ngrok_api_key: str = Cookie(default=None)):
     with open('static/index.html', 'r') as f:
         html_content = f.read()
-    return HTMLResponse(content=html_content, status_code=200)
+    return HTMLResponse(content=html_content, status_code=200, headers={"ngrok_api_key": ngrok_api_key} if ngrok_api_key else {})
 
 @app.get("/api/audio_status")
 async def get_audio_status():
@@ -69,19 +77,20 @@ async def start_ngrok(api_key: str = Form(...)):
     if ngrok_process:
         return JSONResponse(content={"message": "Ngrok is already running.", "public_url": public_url}, status_code=200)
     ngrok.set_auth_token(api_key)
-    public_url = ngrok.connect(8000)
+    public_url = ngrok.connect(8000).public_url
     ngrok_process = ngrok.get_ngrok_process()
     threading.Thread(target=ngrok_process.proc.wait).start()
     return JSONResponse(content={"message": "Ngrok started successfully.", "public_url": public_url}, status_code=200)
 
 @app.post("/api/stop_ngrok")
 async def stop_ngrok():
-    global ngrok_process
+    global ngrok_process, public_url
     if ngrok_process:
         ngrok.kill()
         ngrok_process = None
         public_url = None
-        return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
+        response = JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
+        return response
     return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
 
 if __name__ == "__main__":
