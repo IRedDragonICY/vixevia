@@ -3,6 +3,7 @@ import threading
 import os
 import cv2
 import numpy as np
+import uvicorn
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
@@ -24,6 +25,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/js", StaticFiles(directory="static/js"), name="js")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
 app.mount("/model/live2d", StaticFiles(directory=model_dir), name="live2d")
+app.mount("/CSS", StaticFiles(directory="static/CSS"), name="CSS")
 
 chatbot = Chatbot()
 ngrok_process = None
@@ -82,9 +84,5 @@ async def stop_ngrok():
         return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
     return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
 
-def run_server():
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
-
 if __name__ == "__main__":
-    threading.Thread(target=run_server).start()
+    uvicorn.run(app, host="localhost", port=8000)
