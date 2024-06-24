@@ -4,18 +4,19 @@ import os
 import cv2
 import numpy as np
 import uvicorn
+import webview
 from fastapi import FastAPI, File, UploadFile, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from Chatbot import Chatbot
 from pyngrok import ngrok
+import ctypes
+import urllib.request
+import sys
 
-logging.getLogger("transformers").setLevel(logging.ERROR)
-logging.getLogger("so_vits_svc_fork").setLevel(logging.ERROR)
-logging.getLogger("torch").setLevel(logging.ERROR)
 logging.disable(logging.CRITICAL)
-logging.disable(logging.ERROR)
+
 app = FastAPI()
 
 app.add_middleware(
@@ -28,7 +29,6 @@ app.add_middleware(
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_dir = os.path.join(current_dir, "model/live2d")
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/js", StaticFiles(directory="static/js"), name="js")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
@@ -39,8 +39,31 @@ chatbot = Chatbot()
 ngrok_process = None
 public_url = None
 
+def check_internet_connection():
+    try:
+        urllib.request.urlopen('http://google.com', timeout=5)
+        return True
+    except urllib.request.URLError:
+        return False
+
+def show_error_message():
+    MB_RETRYCANCEL = 0x05
+    IDRETRY = 4
+    IDCANCEL = 2
+    result = ctypes.windll.user32.MessageBoxW(0, "No internet connection. Please check your connection and try again.", "Error", MB_RETRYCANCEL | 0x10 | 0x1000)
+    if result == IDRETRY:
+        if not check_internet_connection():
+            show_error_message()
+        else:
+            start_webview()
+    elif result == IDCANCEL:
+        sys.exit()
+
 @app.get("/")
 async def index(ngrok_api_key: str = Cookie(default=None)):
+    if not check_internet_connection():
+        show_error_message()
+        return JSONResponse(content={"message": "No internet connection."}, status_code=500)
     with open('static/index.html', 'r') as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200, headers={"ngrok_api_key": ngrok_api_key} if ngrok_api_key else {})
@@ -61,7 +84,7 @@ async def upload_frame(image: UploadFile = File(...)):
         frame = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
         chatbot.process_frame(frame)
     except Exception as e:
-        print(f"Error processing frame: {e}")
+        logging.error(f"Error processing frame: {e}")
 
 @app.post("/api/upload_audio")
 async def upload_audio(audio: UploadFile = File(...)):
@@ -69,11 +92,14 @@ async def upload_audio(audio: UploadFile = File(...)):
         audio_bytes = await audio.read()
         chatbot.process_audio(audio_bytes)
     except Exception as e:
-        print(f"Error processing audio: {e}")
+        logging.error(f"Error processing audio: {e}")
 
 @app.post("/api/start_ngrok")
 async def start_ngrok(api_key: str = Form(...)):
     global ngrok_process, public_url
+    if not check_internet_connection():
+        show_error_message()
+        return JSONResponse(content={"message": "No internet connection."}, status_code=500)
     if ngrok_process:
         return JSONResponse(content={"message": "Ngrok is already running.", "public_url": public_url}, status_code=200)
     ngrok.set_auth_token(api_key)
@@ -89,9 +115,16 @@ async def stop_ngrok():
         ngrok.kill()
         ngrok_process = None
         public_url = None
-        response = JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
-        return response
+        return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
     return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
 
+def start_webview():
+    webview.create_window("Vixevia", "http://localhost:8000", width=800, height=600, resizable=True)
+    webview.start()
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+    threading.Thread(target=uvicorn.run, args=(app,), kwargs={"host": "localhost", "port": 8000}, daemon=True).start()
+    if check_internet_connection():
+        start_webview()
+    else:
+        show_error_message()
