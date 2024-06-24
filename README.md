@@ -68,7 +68,7 @@ To get started with Vixevia, follow these steps:
 ## TODO
 
 - [ ] Create custom Live2D model for Vixevia
-- [ ] Add opencv auto labeling so can remmeber person from Gemini Pro Vision
+- [ ] Add opencv auto labeling so can remember person from Gemini Pro Vision
 ## Contributing
 
 Contributions to Vixevia are welcome! If you have any ideas, bug reports, or feature requests, please open an issue or submit a pull request. Make sure to follow the project's coding guidelines and best practices.
