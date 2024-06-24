@@ -2,6 +2,13 @@
 <html lang="id">
 <head>
     <title>Vixevia</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="CSS/style.css">
+
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.2/dist/browser/pixi.min.js"></script>
@@ -11,7 +18,68 @@
 </head>
 <body>
 <div id="status"></div>
-<canvas id="canvas"></canvas>
+<div id="canvas-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+    <canvas id="canvas"></canvas>
+</div>
+
+<button type="button" class="btn btn-primary floating-button animate__animated animate__fadeInUp" data-bs-toggle="modal" data-bs-target="#settingsModal">
+    <i class="bi bi-gear-fill"></i>
+</button>
+
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-bottom border-secondary">
+                <h1 class="modal-title fs-5" id="settingsModalLabel">Settings</h1>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4 settings-menu-container">
+                        <ul class="nav nav-pills flex-column" id="settings-menu">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#personalization-settings">Personalization</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#ngrok-settings">Ngrok</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#help-settings">Help</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-8 settings-content-container">
+                        <div class="tab-content" id="settings-content">
+                            <div class="tab-pane fade show active" id="personalization-settings">
+                                <h3>Personalization</h3>
+                                <p>Macam-macam settings disini. Anda bisa menambahkan lebih banyak konten di sini.  </p>
+                            </div>
+                            <div class="tab-pane fade" id="ngrok-settings">
+                                <h3>Ngrok Settings</h3>
+                                <form id="ngrok-form">
+                                    <div class="mb-3">
+                                        <label for="api-key" class="form-label">Ngrok API Key:</label>
+                                        <input type="text" class="form-control" id="api-key" name="api-key" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Start Ngrok</button>
+                                </form>
+                                <div id="ngrok-status"></div>
+                                <button id="stop-ngrok" class="btn btn-danger mt-3">Stop Ngrok</button>
+                            </div>
+                            <div class="tab-pane fade" id="help-settings">
+                                <h3>Help</h3>
+                                <p>Settings untuk bantuan disini. Anda bisa menambahkan lebih banyak konten di sini.  </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/main.js" type="module"></script>
+<script src="js/setup.js" type="module"></script>
 </body>
 </html>

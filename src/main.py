@@ -3,8 +3,8 @@ import threading
 import os
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 
 from Chatbot import Chatbot
@@ -26,6 +26,8 @@ app.mount("/temp", StaticFiles(directory="temp"), name="temp")
 app.mount("/model/live2d", StaticFiles(directory=model_dir), name="live2d")
 
 chatbot = Chatbot()
+ngrok_process = None
+public_url = None
 
 @app.get("/")
 async def index():
@@ -59,18 +61,30 @@ async def upload_audio(audio: UploadFile = File(...)):
     except Exception as e:
         print(f"Error processing audio: {e}")
 
+@app.post("/api/start_ngrok")
+async def start_ngrok(api_key: str = Form(...)):
+    global ngrok_process, public_url
+    if ngrok_process:
+        return JSONResponse(content={"message": "Ngrok is already running.", "public_url": public_url}, status_code=200)
+    ngrok.set_auth_token(api_key)
+    public_url = ngrok.connect(8000)
+    ngrok_process = ngrok.get_ngrok_process()
+    threading.Thread(target=ngrok_process.proc.wait).start()
+    return JSONResponse(content={"message": "Ngrok started successfully.", "public_url": public_url}, status_code=200)
+
+@app.post("/api/stop_ngrok")
+async def stop_ngrok():
+    global ngrok_process
+    if ngrok_process:
+        ngrok.kill()
+        ngrok_process = None
+        public_url = None
+        return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
+    return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
+
 def run_server():
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)
 
 if __name__ == "__main__":
     threading.Thread(target=run_server).start()
-    public_url = ngrok.connect("8000")
-    print(f"Public URL: {public_url}")
-    ngrok_process = ngrok.get_ngrok_process()
-
-    try:
-        ngrok_process.proc.wait()
-    except KeyboardInterrupt:
-        print(" Shutting down server.")
-        ngrok.kill()

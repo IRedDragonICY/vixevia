@@ -37,6 +37,15 @@
     <orderEntry type="library" name="cubism4" level="application" />
     <orderEntry type="library" name="@ricky0123/vad-web" level="application" />
     <orderEntry type="library" name="onnxruntime-web" level="application" />
+    <orderEntry type="library" name="onnxruntime-web" level="application" />
+    <orderEntry type="library" name="@ricky0123/vad-web" level="application" />
+    <orderEntry type="library" name="cubism4" level="application" />
+    <orderEntry type="library" name="pixi.js" level="application" />
+    <orderEntry type="library" name="live2d" level="application" />
+    <orderEntry type="library" name="live2dcubismcore" level="application" />
+    <orderEntry type="library" name="bootstrap-icons" level="application" />
+    <orderEntry type="library" name="animate.css" level="application" />
+    <orderEntry type="library" name="bootstrap" level="application" />
   </component>
   <component name="PackageRequirementsSettings">
     <option name="versionSpecifier" value="Don't specify version" />
