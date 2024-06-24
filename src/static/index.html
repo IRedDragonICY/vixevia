@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="CSS/style.css">
 
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
@@ -20,7 +21,7 @@
 <div id="status-container">
     <div id="status" class="status-bubble animate__animated">Offline</div>
 </div>
-<div id="canvas-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+<div id="canvas-container">
     <canvas id="canvas"></canvas>
 </div>
 
@@ -32,7 +33,7 @@
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content bg-dark text-light">
             <div class="modal-header border-bottom border-secondary">
-                <h1 class="modal-title fs-5" id="settingsModalLabel">Settings</h1>
+                <h1 class="modal-title fs-5" id="settingsModalLabel"><i class="bi bi-gear-fill me-2"></i> Settings</h1>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -40,37 +41,43 @@
                     <div class="col-md-4 settings-menu-container">
                         <ul class="nav nav-pills flex-column" id="settings-menu">
                             <li class="nav-item">
-                                <a class="nav-link active" data-bs-toggle="tab" href="#personalization-settings">Personalization</a>
+                                <a class="nav-link active" data-bs-toggle="tab" href="#personalization-settings"><i class="bi bi-brush me-2"></i> Personalization</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#ngrok-settings">Ngrok</a>
+                                <a class="nav-link" data-bs-toggle="tab" href="#ngrok-settings"><i class="bi bi-cloud-arrow-up me-2"></i> Ngrok</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" data-bs-toggle="tab" href="#help-settings">Help</a>
+                                <a class="nav-link" data-bs-toggle="tab" href="#info-settings"><i class="bi bi-info-circle me-2"></i> Information</a>
                             </li>
                         </ul>
                     </div>
                     <div class="col-md-8 settings-content-container">
                         <div class="tab-content" id="settings-content">
                             <div class="tab-pane fade show active" id="personalization-settings">
-                                <h3>Personalization</h3>
-                                <p>Macam-macam settings disini. Anda bisa menambahkan lebih banyak konten di sini.  </p>
+                                <h3><i class="bi bi-brush me-2"></i> Personalization</h3>
+                                <p>Macam-macam settings disini. Anda bisa menambahkan lebih banyak konten di sini.</p>
                             </div>
                             <div class="tab-pane fade" id="ngrok-settings">
-                                <h3>Ngrok Settings</h3>
+                                <h3><i class="bi bi-cloud-arrow-up me-2"></i> Ngrok Settings</h3>
                                 <form id="ngrok-form">
                                     <div class="mb-3">
                                         <label for="api-key" class="form-label">Ngrok API Key:</label>
                                         <input type="text" class="form-control" id="api-key" name="api-key" required>
                                     </div>
-                                    <button type="submit" class="btn btn-primary">Start Ngrok</button>
+                                    <button type="submit" class="btn btn-primary"><i class="bi bi-play-fill me-2"></i> Start Ngrok</button>
                                 </form>
                                 <div id="ngrok-status"></div>
-                                <button id="stop-ngrok" class="btn btn-danger mt-3">Stop Ngrok</button>
+                                <button id="stop-ngrok" class="btn btn-danger mt-3"><i class="bi bi-stop-fill me-2"></i> Stop Ngrok</button>
                             </div>
-                            <div class="tab-pane fade" id="help-settings">
-                                <h3>Help</h3>
-                                <p>Settings untuk bantuan disini. Anda bisa menambahkan lebih banyak konten di sini.  </p>
+                            <div class="tab-pane fade" id="info-settings">
+                                <h3><i class="bi bi-info-circle me-2"></i> V.I.X.E.V.I.A</h3>
+                                <p>V.I.X.E.V.I.A adalah sebuah proyek inovatif yang dikembangkan oleh tim mahasiswa Universitas Ahmad Dahlan.</p>
+                                <h4>Tim Pengembang:</h4>
+                                <ul>
+                                    <li>Rendie Abdi Saputra (2200018094)</li>
+                                    <li>Mohammad Farid Hendianto (2200018401)</li>
+                                    <li>Reyhanssan Islamey (2200018411)</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -80,7 +87,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script src="js/main.js" type="module"></script>
 <script src="js/setup.js" type="module"></script>
 </body>

@@ -3,11 +3,13 @@ html, body {
     padding: 0;
     height: 100%;
     overflow: hidden;
+    font-family: 'Poppins', sans-serif;
 }
 
 #canvas-container {
     width: 100%;
     height: 100%;
+    position: relative;
 }
 
 #canvas {
@@ -20,6 +22,8 @@ html, body {
     bottom: 20px;
     right: 20px;
     z-index: 10;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
 #status-container {
@@ -48,4 +52,103 @@ html, body {
     border-top: 6px solid rgba(200, 200, 200, 0.8);
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
+}
+
+.modal-dialog {
+    max-width: 800px;
+}
+
+.modal-content {
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 15px; /* Membuat modal lebih rounded */
+}
+
+.modal-body {
+    flex: 1;
+    overflow: hidden;
+}
+
+.settings-menu-container {
+    height: 100%;
+    overflow-y: auto;
+    border-right: 1px solid #333; /* Menambahkan garis pemisah */
+}
+
+.settings-content-container {
+    height: 100%;
+    overflow-y: auto;
+}
+
+#settings-menu {
+    position: sticky;
+    top: 0;
+}
+
+#settings-content {
+    padding-right: 15px;
+}
+
+.tab-pane {
+    height: 100%;
+    overflow-y: auto;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsif untuk layar kecil */
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 0;
+        height: 100%;
+        max-width: none;
+    }
+
+    .modal-content {
+        height: 100%;
+        border-radius: 0;
+    }
+}
+
+/* Styling tambahan untuk elemen */
+.nav-link {
+    color: #ccc; /* Mengatur warna teks default */
+}
+
+.nav-link.active {
+    background-color: #333; /* Mengatur warna latar belakang saat aktif */
+    color: white; /* Mengatur warna teks saat aktif */
+}
+
+.nav-link:hover {
+    color: white; /* Mengatur warna teks saat dihover */
+}
+
+.form-control {
+    background-color: #222; /* Mengatur warna latar belakang input */
+    color: white; /* Mengatur warna teks input */
+    border: 1px solid #333; /* Mengatur warna border input */
+}
+
+.form-control:focus {
+    background-color: #333; /* Mengatur warna latar belakang input saat fokus */
+    color: white; /* Mengatur warna teks input saat fokus */
+    border-color: #555; /* Mengatur warna border input saat fokus */
+    box-shadow: none; /* Menghilangkan box shadow default */
 }
