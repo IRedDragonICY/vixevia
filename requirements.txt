@@ -13,3 +13,4 @@ numpy
 starlette
 pyngrok
 pyinstaller
+pywebview

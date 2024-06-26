@@ -1,7 +1,8 @@
-import { loadModel, startBlinking, setMouthOpenY } from './model.js';
+import ModelController from './model.js';
 
-export const app = new PIXI.Application({ view: document.getElementById("canvas"), autoStart: true, resizeTo: window });
-const audio_link = "/temp/response.wav";
+const app = new PIXI.Application({ view: document.getElementById("canvas"), autoStart: true, resizeTo: window });
+const modelPath = "../model/live2d/vixevia.model3.json";
+const audioLink = "/temp/response.wav";
 const statusDiv = document.getElementById('status');
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -9,11 +10,12 @@ const recognition = new SpeechRecognition();
 recognition.continuous = false;
 recognition.interimResults = false;
 
-let model, video, audioPlaying = false, isProcessing = false, audioLoopRunning = false, mediaRecorder, chunks = [];
+let modelController, video, audioPlaying = false, isProcessing = false, audioLoopRunning = false, mediaRecorder, chunks = [];
 
 (async () => {
-    [model] = await Promise.all([loadModel()]);
-    startBlinking();
+    modelController = new ModelController(app, modelPath);
+    const model = await modelController.loadModel();
+    modelController.startBlinking();
     setupVideo();
     setupAudio();
     await initiateAudioPlay();
@@ -70,7 +72,7 @@ async function playAudioWhenReady() {
         await new Promise(resolve => setTimeout(resolve, 500));
     }
     audioPlaying = true;
-    const audio = new Audio(audio_link);
+    const audio = new Audio(audioLink);
     await audio.play();
     setupAnalyser(audio);
     audioLoopRunning = false;
@@ -111,7 +113,7 @@ function setupAnalyser(audio) {
 function analyseVolume(analyser, dataArray, audio) {
     analyser.getByteFrequencyData(dataArray);
     const volume = dataArray.reduce((prev, curr) => prev + curr, 0) / dataArray.length / 255;
-    setMouthOpenY(volume);
+    modelController.setMouthOpenY(volume);
     if (!audio.paused) requestAnimationFrame(() => analyseVolume(analyser, dataArray, audio));
 }
 

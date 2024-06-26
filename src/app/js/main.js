@@ -1,19 +1,24 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const floatingButton = document.querySelector(".floating-button");
-    const modal = new bootstrap.Modal(document.getElementById("settingsModal"));
-    const ngrokForm = document.getElementById("ngrok-form");
-    const apiKeyInput = document.getElementById("api-key");
-    const ngrokStatus = document.getElementById("ngrok-status");
-    const startNgrokButton = document.getElementById("start-ngrok");
-    const stopNgrokButton = document.getElementById("stop-ngrok");
+class NgrokController {
+    constructor() {
+        this.floatingButton = document.querySelector(".floating-button");
+        this.modal = new bootstrap.Modal(document.getElementById("settingsModal"));
+        this.ngrokForm = document.getElementById("ngrok-form");
+        this.apiKeyInput = document.getElementById("api-key");
+        this.ngrokStatus = document.getElementById("ngrok-status");
+        this.startNgrokButton = document.getElementById("start-ngrok");
+        this.stopNgrokButton = document.getElementById("stop-ngrok");
 
-    floatingButton.addEventListener("click", () => {
-        modal.show();
-    });
+        this.initializeEvents();
+    }
 
-    startNgrokButton.addEventListener("click", async () => {
-        const apiKey = apiKeyInput.value;
+    initializeEvents() {
+        this.floatingButton.addEventListener("click", () => this.modal.show());
+        this.startNgrokButton.addEventListener("click", () => this.startNgrok());
+        this.stopNgrokButton.addEventListener("click", () => this.stopNgrok());
+    }
 
+    async startNgrok() {
+        const apiKey = this.apiKeyInput.value;
         try {
             const response = await fetch("/api/start_ngrok", {
                 method: "POST",
@@ -25,30 +30,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             if (response.ok) {
-                ngrokStatus.innerHTML = `<div class="alert alert-success mt-3" role="alert">Ngrok is running. Public URL: <a href="${data.public_url}" target="_blank">${data.public_url}</a></div>`;
-                startNgrokButton.style.display = "none";
-                stopNgrokButton.style.display = "block";
+                this.updateNgrokStatus('success', `Ngrok is running. Public URL: <a href="${data.public_url}" target="_blank">${data.public_url}</a>`);
+                this.toggleNgrokButtons();
             } else {
-                ngrokStatus.innerHTML = `<div class="alert alert-danger mt-3" role="alert">${data.message}</div>`;
+                this.updateNgrokStatus('danger', data.message);
             }
         } catch (error) {
             console.error("Error starting ngrok:", error);
-            ngrokStatus.innerHTML = `<div class="alert alert-danger mt-3" role="alert">Error starting ngrok.</div>`;
+            this.updateNgrokStatus('danger', "Error starting ngrok.");
         }
-    });
+    }
 
-    stopNgrokButton.addEventListener("click", async () => {
+    async stopNgrok() {
         try {
             const response = await fetch("/api/stop_ngrok", { method: "POST" });
             const data = await response.json();
-            ngrokStatus.innerHTML = `<div class="alert alert-${response.ok ? "success" : "danger"} mt-3" role="alert">${data.message}</div>`;
-            if (response.ok) {
-                stopNgrokButton.style.display = "none";
-                startNgrokButton.style.display = "block";
-            }
+            this.updateNgrokStatus(response.ok ? 'success' : 'danger', data.message);
+            if (response.ok) this.toggleNgrokButtons();
         } catch (error) {
             console.error("Error stopping ngrok:", error);
-            ngrokStatus.innerHTML = `<div class="alert alert-danger mt-3" role="alert">Error stopping ngrok.</div>`;
+            this.updateNgrokStatus('danger', "Error stopping ngrok.");
         }
-    });
-});
+    }
+
+    updateNgrokStatus(status, message) {
+        this.ngrokStatus.innerHTML = `<div class="alert alert-${status} mt-3" role="alert">${message}</div>`;
+    }
+
+    toggleNgrokButtons() {
+        this.startNgrokButton.style.display = this.startNgrokButton.style.display === "none" ? "block" : "none";
+        this.stopNgrokButton.style.display = this.stopNgrokButton.style.display === "none" ? "block" : "none";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => new NgrokController());
