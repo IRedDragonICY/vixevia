@@ -29,11 +29,11 @@ app.add_middleware(
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_dir = os.path.join(current_dir, "model/live2d")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/js", StaticFiles(directory="static/js"), name="js")
+app.mount("/app", StaticFiles(directory="app"), name="app")
+app.mount("/js", StaticFiles(directory="app/js"), name="js")
 app.mount("/temp", StaticFiles(directory="temp"), name="temp")
 app.mount("/model/live2d", StaticFiles(directory=model_dir), name="live2d")
-app.mount("/CSS", StaticFiles(directory="static/CSS"), name="CSS")
+app.mount("/CSS", StaticFiles(directory="app/CSS"), name="CSS")
 
 chatbot = Chatbot()
 ngrok_process = None
@@ -64,7 +64,7 @@ async def index(ngrok_api_key: str = Cookie(default=None)):
     if not check_internet_connection():
         show_error_message()
         return JSONResponse(content={"message": "No internet connection."}, status_code=500)
-    with open('static/index.html', 'r') as f:
+    with open('app/index.html', 'r') as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200, headers={"ngrok_api_key": ngrok_api_key} if ngrok_api_key else {})
 
