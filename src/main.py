@@ -40,7 +40,7 @@ class ServerApp:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         model_dir = os.path.join(current_dir, "model/live2d")
         self.app.mount("/app", StaticFiles(directory="app"), name="app")
-        self.app.mount("/assets", StaticFiles(directory="app"), name="assets")
+        self.app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
         self.app.mount("/js", StaticFiles(directory="app/js"), name="js")
         self.app.mount("/temp", StaticFiles(directory="temp"), name="temp")
         self.app.mount("/model/live2d", StaticFiles(directory=model_dir), name="live2d")
@@ -132,7 +132,6 @@ class ServerApp:
             self.start_webview()
         else:
             self.show_error_message()
-
 
 if __name__ == "__main__":
     server_app = ServerApp()
