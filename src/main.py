@@ -43,7 +43,7 @@ class ServerApp:
         self.app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
         self.app.mount("/js", StaticFiles(directory="app/js"), name="js")
         self.app.mount("/temp", StaticFiles(directory="temp"), name="temp")
-        self.app.mount("/model/live2d", StaticFiles(directory=model_dir), name="live2d")
+        self.app.mount("/model/live2d", StaticFiles(directory="model/live2d"), name="live2d")
         self.app.mount("/CSS", StaticFiles(directory="app/CSS"), name="CSS")
 
     def check_internet_connection(self):

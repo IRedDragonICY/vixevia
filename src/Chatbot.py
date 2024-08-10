@@ -20,8 +20,7 @@ class Chatbot:
         self.generation_config, self.safety_settings = self._model_config()
         self.model = self._get_text_model()
         self.convo = self._get_convo()
-        if not self.convo.history:
-            self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
+        self._ensure_system_prompt()
         self.frames = []
         self.audio_ready = False
 
@@ -70,6 +69,15 @@ class Chatbot:
     def _save_convo(self):
         with open(self.config.FILES.SESSION, 'wb') as f:
             pickle.dump(self.convo.history, f)
+
+    def _ensure_system_prompt(self):
+        while not self.convo.history:
+            try:
+                self.convo.send_message({"role": "user", "parts": [{"text": self.system_prompt}]})
+                break
+            except Exception as e:
+                print(f"Exception during system prompt initialization: {e}. Retrying...")
+                self._configure_genai()
 
     def _handle_response(self, user_input):
         for _ in range(10):
