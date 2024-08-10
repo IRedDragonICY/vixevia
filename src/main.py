@@ -38,12 +38,16 @@ class ServerApp:
         )
 
     def mount_directories(self):
-        self.app.mount("/app", StaticFiles(directory="app"), name="app")
-        self.app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
-        self.app.mount("/js", StaticFiles(directory="app/js"), name="js")
-        self.app.mount("/temp", StaticFiles(directory="temp"), name="temp")
-        self.app.mount("/model/live2d", StaticFiles(directory="model/live2d"), name="live2d")
-        self.app.mount("/CSS", StaticFiles(directory="app/CSS"), name="CSS")
+        directories = {
+            "/app": "app",
+            "/assets": "app/assets",
+            "/js": "app/js",
+            "/temp": "temp",
+            "/model/live2d": "model/live2d",
+            "/CSS": "app/CSS"
+        }
+        for mount_point, directory in directories.items():
+            self.app.mount(mount_point, StaticFiles(directory=directory), name=mount_point.strip("/"))
 
     @staticmethod
     def check_internet_connection():
