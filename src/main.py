@@ -1,19 +1,20 @@
+import ctypes
 import logging
+import sys
 import threading
-import os
+import urllib.request
+
 import cv2
 import numpy as np
 import uvicorn
 import webview
 from fastapi import FastAPI, File, UploadFile, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
-from starlette.staticfiles import StaticFiles
-from starlette.middleware.cors import CORSMiddleware
-from Chatbot import Chatbot
 from pyngrok import ngrok
-import ctypes
-import urllib.request
-import sys
+from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
+
+from Chatbot import Chatbot
 
 logging.disable(logging.CRITICAL)
 
@@ -37,8 +38,6 @@ class ServerApp:
         )
 
     def mount_directories(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        model_dir = os.path.join(current_dir, "model/live2d")
         self.app.mount("/app", StaticFiles(directory="app"), name="app")
         self.app.mount("/assets", StaticFiles(directory="app/assets"), name="assets")
         self.app.mount("/js", StaticFiles(directory="app/js"), name="js")
@@ -46,26 +45,27 @@ class ServerApp:
         self.app.mount("/model/live2d", StaticFiles(directory="model/live2d"), name="live2d")
         self.app.mount("/CSS", StaticFiles(directory="app/CSS"), name="CSS")
 
-    def check_internet_connection(self):
+    @staticmethod
+    def check_internet_connection():
         try:
             urllib.request.urlopen('https://google.com', timeout=5)
             return True
-        except urllib.request.URLError:
+        except urllib.request:
             return False
 
     def show_error_message(self):
-        MB_RETRYCANCEL = 0x05
-        IDRETRY = 4
-        IDCANCEL = 2
+        mb_retrycancel = 0x05
+        idretry = 4
+        idcancel = 2
         result = ctypes.windll.user32.MessageBoxW(0,
                                                   "No internet connection. Please check your connection and try again.",
-                                                  "Error", MB_RETRYCANCEL | 0x10 | 0x1000)
-        if result == IDRETRY:
+                                                  "Error", mb_retrycancel | 0x10 | 0x1000)
+        if result == idretry:
             if not self.check_internet_connection():
                 self.show_error_message()
             else:
                 self.start_webview()
-        elif result == IDCANCEL:
+        elif result == idcancel:
             sys.exit()
 
     async def index(self, ngrok_api_key: str = Cookie(default=None)):
@@ -107,7 +107,7 @@ class ServerApp:
             return JSONResponse(content={"message": "Ngrok is already running.", "public_url": self.public_url},
                                 status_code=200)
         ngrok.set_auth_token(api_key)
-        self.public_url = ngrok.connect(8000).public_url
+        self.public_url = ngrok.connect(str(8000)).public_url
         self.ngrok_process = ngrok.get_ngrok_process()
         threading.Thread(target=self.ngrok_process.proc.wait).start()
         return JSONResponse(content={"message": "Ngrok started successfully.", "public_url": self.public_url},
@@ -121,7 +121,8 @@ class ServerApp:
             return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
         return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
 
-    def start_webview(self):
+    @staticmethod
+    def start_webview():
         webview.create_window("Vixevia", "http://localhost:8000", width=800, height=600, resizable=True)
         webview.start()
 
@@ -132,6 +133,7 @@ class ServerApp:
             self.start_webview()
         else:
             self.show_error_message()
+
 
 if __name__ == "__main__":
     server_app = ServerApp()
