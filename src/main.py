@@ -3,11 +3,12 @@ import logging
 import sys
 import threading
 import urllib.request
+import webbrowser
+from urllib.error import URLError
 
 import cv2
 import numpy as np
 import uvicorn
-import webview
 from fastapi import FastAPI, File, UploadFile, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from pyngrok import ngrok
@@ -28,6 +29,8 @@ class ServerApp:
         self.ngrok_process = None
         self.public_url = None
 
+        self.ensure_internet_connection()
+
     def setup_middlewares(self):
         self.app.add_middleware(
             CORSMiddleware,
@@ -47,39 +50,42 @@ class ServerApp:
             "/CSS": "app/CSS"
         }
         for mount_point, directory in directories.items():
-            self.app.mount(mount_point, StaticFiles(directory=directory), name=mount_point.strip("/"))
+            self.app.mount(
+                mount_point,
+                StaticFiles(directory=directory),
+                name=mount_point.strip("/")
+            )
 
     @staticmethod
     def check_internet_connection():
         try:
             urllib.request.urlopen('https://google.com', timeout=5)
             return True
-        except urllib.request:
+        except URLError:
             return False
 
-    def show_error_message(self):
-        mb_retrycancel = 0x05
-        idretry = 4
-        idcancel = 2
-        result = ctypes.windll.user32.MessageBoxW(0,
-                                                  "No internet connection. Please check your connection and try again.",
-                                                  "Error", mb_retrycancel | 0x10 | 0x1000)
-        if result == idretry:
-            if not self.check_internet_connection():
-                self.show_error_message()
+    def ensure_internet_connection(self):
+        while not self.check_internet_connection():
+            result = ctypes.windll.user32.MessageBoxW(
+                0,
+                "Tidak ada koneksi internet. Silakan periksa koneksi Anda dan coba lagi.",
+                "Error",
+                0x05 | 0x10 | 0x1000
+            )
+            if result == 4:
+                continue
             else:
-                self.start_webview()
-        elif result == idcancel:
-            sys.exit()
+                sys.exit()
+
+    @staticmethod
+    def open_browser():
+        webbrowser.open_new("http://localhost:8000")
 
     async def index(self, ngrok_api_key: str = Cookie(default=None)):
-        if not self.check_internet_connection():
-            self.show_error_message()
-            return JSONResponse(content={"message": "No internet connection."}, status_code=500)
         with open('app/index.html', 'r') as f:
             html_content = f.read()
         headers = {"ngrok_api_key": ngrok_api_key} if ngrok_api_key else {}
-        return HTMLResponse(content=html_content, status_code=200, headers=headers)
+        return HTMLResponse(content=html_content, headers=headers)
 
     async def get_audio_status(self):
         return {"audio_ready": self.chatbot.audio_ready}
@@ -91,7 +97,8 @@ class ServerApp:
     async def upload_frame(self, image: UploadFile = File(...)):
         try:
             image_bytes = await image.read()
-            frame = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+            frame = cv2.imdecode(
+                np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
             self.chatbot.process_frame(frame)
         except Exception as e:
             logging.error(f"Error processing frame: {e}")
@@ -105,38 +112,41 @@ class ServerApp:
 
     async def start_ngrok(self, api_key: str = Form(...)):
         if not self.check_internet_connection():
-            self.show_error_message()
-            return JSONResponse(content={"message": "No internet connection."}, status_code=500)
+            return JSONResponse(
+                content={"message": "Tidak ada koneksi internet."},
+                status_code=500
+            )
         if self.ngrok_process:
-            return JSONResponse(content={"message": "Ngrok is already running.", "public_url": self.public_url},
-                                status_code=200)
+            return JSONResponse(
+                content={"message": "Ngrok sudah berjalan.", "public_url": self.public_url},
+                status_code=200
+            )
         ngrok.set_auth_token(api_key)
-        self.public_url = ngrok.connect(str(8000)).public_url
+        self.public_url = ngrok.connect(8000).public_url
         self.ngrok_process = ngrok.get_ngrok_process()
         threading.Thread(target=self.ngrok_process.proc.wait).start()
-        return JSONResponse(content={"message": "Ngrok started successfully.", "public_url": self.public_url},
-                            status_code=200)
+        return JSONResponse(
+            content={"message": "Ngrok berhasil dimulai.", "public_url": self.public_url},
+            status_code=200
+        )
 
     async def stop_ngrok(self):
         if self.ngrok_process:
             ngrok.kill()
             self.ngrok_process = None
             self.public_url = None
-            return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
-        return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
-
-    @staticmethod
-    def start_webview():
-        webview.create_window("Vixevia", "http://localhost:8000", width=800, height=600, resizable=True)
-        webview.start()
+            return JSONResponse(
+                content={"message": "Ngrok berhasil dihentikan."},
+                status_code=200
+            )
+        return JSONResponse(
+            content={"message": "Ngrok tidak berjalan."},
+            status_code=400
+        )
 
     def run(self):
-        threading.Thread(target=uvicorn.run, args=(self.app,), kwargs={"host": "localhost", "port": 8000},
-                         daemon=True).start()
-        if self.check_internet_connection():
-            self.start_webview()
-        else:
-            self.show_error_message()
+        threading.Thread(target=self.open_browser).start()
+        uvicorn.run(self.app, host="localhost", port=8000)
 
 
 if __name__ == "__main__":
