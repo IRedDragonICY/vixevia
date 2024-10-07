@@ -4,32 +4,34 @@ const app = new PIXI.Application({ view: document.getElementById("canvas"), auto
 const modelPath = "../model/live2d/vixevia.model3.json";
 const audioLink = "/temp/response.wav";
 const statusDiv = document.getElementById('status');
-
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.continuous = false;
 recognition.interimResults = false;
 
-let modelController, video, audioPlaying = false, isProcessing = false, audioLoopRunning = false, mediaRecorder, chunks = [];
+let modelController, video, audioPlaying = false, isProcessing = false, mediaRecorder, chunks = [];
 
 (async () => {
     modelController = new ModelController(app, modelPath);
-    const model = await modelController.loadModel();
+    await modelController.loadModel();
     modelController.startBlinking();
-    setupVideo();
-    setupAudio();
-    await initiateAudioPlay();
+    setupMedia();
 })();
 
-function setupVideo() {
-    video = document.createElement('video');
-    video.autoplay = true;
-    navigator.mediaDevices.getUserMedia({ video: true })
+function setupMedia() {
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
-            video.srcObject = stream;
-            video.addEventListener('canplaythrough', () => requestAnimationFrame(captureFrame));
+            setupVideo(stream);
+            setupAudio(stream);
         })
         .catch(console.error);
+}
+
+function setupVideo(stream) {
+    video = document.createElement('video');
+    video.srcObject = stream;
+    video.autoplay = true;
+    video.addEventListener('canplay', () => requestAnimationFrame(captureFrame));
 }
 
 function captureFrame() {
@@ -40,42 +42,68 @@ function captureFrame() {
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(blob => blob && sendFrameToServer(blob), 'image/jpeg');
     }
-    setTimeout(() => requestAnimationFrame(captureFrame), 1000);
+    setTimeout(() => requestAnimationFrame(captureFrame), 2500);
 }
 
 function sendFrameToServer(blob) {
     const formData = new FormData();
     formData.append('image', blob, 'frame.jpg');
-
-    const sendRequest = async (retryCount = 0) => {
-        try {
-            const response = await fetch('/api/upload_frame', { method: 'POST', body: formData });
-            console.log('Frame uploaded:', response);
-        } catch (error) {
-            console.error('Failed to upload frame:', error);
-            if (retryCount < 3) {
-                setTimeout(() => sendRequest(retryCount + 1), 2000);
-            }
-        }
-    };
-
-    sendRequest();
+    fetch('/api/upload_frame', { method: 'POST', body: formData }).catch(console.error);
 }
 
-async function initiateAudioPlay() {
-    if (!audioPlaying && !audioLoopRunning) await playAudioWhenReady();
+function setupAudio(stream) {
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = event => chunks.push(event.data);
+    mediaRecorder.onstop = () => processAudio();
+
+    const vad = vad.MicVAD.new({
+        onSpeechStart: () => startRecording(),
+        onSpeechEnd: () => stopRecording(),
+    });
+
+    vad.start();
+}
+
+function startRecording() {
+    if (!isProcessing && !audioPlaying) {
+        mediaRecorder.start();
+        statusDiv.innerHTML = "Listening...";
+    }
+}
+
+function stopRecording() {
+    if (!isProcessing && !audioPlaying) {
+        mediaRecorder.stop();
+        isProcessing = true;
+        statusDiv.innerHTML = "Processing...";
+    }
+}
+
+function processAudio() {
+    const blob = new Blob(chunks, { type: 'audio/wav' });
+    sendAudioToServer(blob);
+    chunks = [];
+}
+
+function sendAudioToServer(blob) {
+    const formData = new FormData();
+    formData.append('audio', blob, 'audio.wav');
+    fetch('/api/upload_audio', { method: 'POST', body: formData })
+        .then(() => {
+            statusDiv.innerHTML = "";
+            isProcessing = false;
+            playAudioWhenReady();
+        })
+        .catch(console.error);
 }
 
 async function playAudioWhenReady() {
-    audioLoopRunning = true;
     while (!(await checkAudioStatus())) {
         await new Promise(resolve => setTimeout(resolve, 500));
     }
     audioPlaying = true;
     const audio = new Audio(audioLink);
-    await audio.play();
-    setupAnalyser(audio);
-    audioLoopRunning = false;
+    audio.play().then(() => setupAnalyser(audio));
 }
 
 async function checkAudioStatus() {
@@ -97,69 +125,20 @@ function setupAnalyser(audio) {
 
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
-    analyseVolume(analyser, dataArray, audio);
 
-    audio.onended = async () => {
-        try {
-            await fetch('/api/reset_audio_status', { method: 'POST' });
-        } catch (error) {
-            console.error('Failed to reset audio status:', error);
-        }
-        audioPlaying = false;
-        if (!isProcessing) recognition.start();
-    };
+    function analyseVolume() {
+        analyser.getByteFrequencyData(dataArray);
+        const volume = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length / 255;
+        modelController.setMouthOpenY(volume);
+        if (!audio.paused) requestAnimationFrame(analyseVolume);
+    }
+
+    analyseVolume();
+    audio.onended = resetAudioState;
 }
 
-function analyseVolume(analyser, dataArray, audio) {
-    analyser.getByteFrequencyData(dataArray);
-    const volume = dataArray.reduce((prev, curr) => prev + curr, 0) / dataArray.length / 255;
-    modelController.setMouthOpenY(volume);
-    if (!audio.paused) requestAnimationFrame(() => analyseVolume(analyser, dataArray, audio));
-}
-
-function setupAudio() {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = event => chunks.push(event.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'audio/wav' });
-                sendAudioToServer(blob);
-                chunks = [];
-            };
-            setupVAD(stream);
-        })
-        .catch(console.error);
-}
-
-function sendAudioToServer(blob) {
-    const formData = new FormData();
-    formData.append('audio', blob, 'audio.wav');
-    fetch('/api/upload_audio', { method: 'POST', body: formData })
-        .then(response => {
-            console.log('Audio uploaded:', response);
-            statusDiv.innerHTML = "";
-            isProcessing = false;
-            initiateAudioPlay();
-        })
-        .catch(console.error);
-}
-
-async function setupVAD(stream) {
-    const myvad = await vad.MicVAD.new({
-        onSpeechStart: () => {
-            if (isProcessing || audioPlaying) return;
-            console.log("Speech start detected");
-            statusDiv.innerHTML = "Listening...";
-            mediaRecorder.start();
-        },
-        onSpeechEnd: () => {
-            if (isProcessing || audioPlaying) return;
-            console.log("Speech end detected");
-            statusDiv.innerHTML = "Processing...";
-            mediaRecorder.stop();
-            isProcessing = true;
-        }
-    });
-    myvad.start();
+function resetAudioState() {
+    fetch('/api/reset_audio_status', { method: 'POST' });
+    audioPlaying = false;
+    if (!isProcessing) recognition.start();
 }
