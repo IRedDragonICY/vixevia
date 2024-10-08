@@ -163,7 +163,7 @@ class Chatbot:
                 print(f"Failed to process audio: {e}")
 
         self.history.append(user_input)
-        assistant_message = {"role": "assistant", "parts": [{"text": response}]}
+        assistant_message = {"role": "model", "parts": [{"text": response}]}
         self.history.append(assistant_message)
 
         self._save_history()
