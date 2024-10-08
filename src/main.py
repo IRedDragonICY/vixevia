@@ -11,6 +11,9 @@ import cv2
 import numpy as np
 import uvicorn
 
+# Perbaikan import pyngrok
+from pyngrok import ngrok
+
 logging.disable(logging.CRITICAL)
 
 
@@ -42,7 +45,6 @@ class ServerApp:
         for mount_point, directory in directories.items():
             self.app.mount(mount_point, StaticFiles(directory=directory), name=mount_point.strip("/"))
 
-        # Define routes
         self.app.get("/")(self.index)
         self.app.get("/api/audio_status")(self.get_audio_status)
         self.app.post("/api/reset_audio_status")(self.reset_audio_status)
@@ -51,7 +53,8 @@ class ServerApp:
         self.app.post("/api/start_ngrok")(self.start_ngrok)
         self.app.post("/api/stop_ngrok")(self.stop_ngrok)
 
-    async def index(self, ngrok_api_key: str = Cookie(default=None)):
+    @staticmethod
+    async def index(ngrok_api_key: str = Cookie(default=None)):
         with open('app/index.html', 'r') as f:
             html_content = f.read()
         headers = {"ngrok_api_key": ngrok_api_key} if ngrok_api_key else {}
@@ -91,22 +94,29 @@ class ServerApp:
             return JSONResponse(content={"message": "Ngrok sudah berjalan.", "public_url": self.public_url},
                                 status_code=200)
 
-        import ngrok
-        ngrok.set_auth_token(api_key)
-        self.public_url = ngrok.connect(8000).public_url
-        self.ngrok_process = ngrok.get_ngrok_process()
-        threading.Thread(target=self.ngrok_process.proc.wait).start()
+        try:
+            ngrok.set_auth_token(api_key)
+            tunnel = ngrok.connect(8000)
+            self.public_url = tunnel.public_url
+            self.ngrok_process = ngrok.get_ngrok_process()
+            threading.Thread(target=self.ngrok_process.proc.wait).start()
 
-        return JSONResponse(content={"message": "Ngrok berhasil dimulai.", "public_url": self.public_url},
-                            status_code=200)
+            return JSONResponse(content={"message": "Ngrok berhasil dimulai.", "public_url": self.public_url},
+                                status_code=200)
+        except Exception as e:
+            logging.error(f"Error starting ngrok: {e}")
+            return JSONResponse(content={"message": f"Error starting ngrok: {str(e)}"}, status_code=500)
 
     async def stop_ngrok(self):
         if self.ngrok_process:
-            import ngrok
-            ngrok.kill()
-            self.ngrok_process = None
-            self.public_url = None
-            return JSONResponse(content={"message": "Ngrok berhasil dihentikan."}, status_code=200)
+            try:
+                ngrok.kill()
+                self.ngrok_process = None
+                self.public_url = None
+                return JSONResponse(content={"message": "Ngrok berhasil dihentikan."}, status_code=200)
+            except Exception as e:
+                logging.error(f"Error stopping ngrok: {e}")
+                return JSONResponse(content={"message": f"Error stopping ngrok: {str(e)}"}, status_code=500)
 
         return JSONResponse(content={"message": "Ngrok tidak berjalan."}, status_code=400)
 
