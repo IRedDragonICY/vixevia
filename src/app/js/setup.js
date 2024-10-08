@@ -1,144 +1,93 @@
 import ModelController from './model.js';
 
-const app = new PIXI.Application({ view: document.getElementById("canvas"), autoStart: true, resizeTo: window });
-const modelPath = "../model/live2d/vixevia.model3.json";
-const audioLink = "/temp/response.wav";
-const statusDiv = document.getElementById('status');
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = new SpeechRecognition();
-recognition.continuous = false;
-recognition.interimResults = false;
-
-let modelController, video, audioPlaying = false, isProcessing = false, mediaRecorder, chunks = [];
-
 (async () => {
-    modelController = new ModelController(app, modelPath);
+    const app = new PIXI.Application({
+        view: document.getElementById("canvas"),
+        autoStart: true,
+        resizeTo: window
+    });
+    const modelController = new ModelController(app, "../model/live2d/vixevia.model3.json");
     await modelController.loadModel();
     modelController.startBlinking();
-    setupMedia();
-})();
 
-function setupMedia() {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-            setupVideo(stream);
-            setupAudio(stream);
-        })
-        .catch(console.error);
-}
+    const statusDiv = document.getElementById('status');
+    const audioLink = "/temp/response.wav";
+    let audioPlaying = false;
+    let isProcessing = false;
+    let chunks = [];
 
-function setupVideo(stream) {
-    video = document.createElement('video');
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const video = document.createElement('video');
     video.srcObject = stream;
     video.autoplay = true;
-    video.addEventListener('canplay', () => requestAnimationFrame(captureFrame));
-}
-
-function captureFrame() {
-    if (video.readyState === 4) {
+    video.addEventListener('canplay', () => {
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => blob && sendFrameToServer(blob), 'image/jpeg');
-    }
-    setTimeout(() => requestAnimationFrame(captureFrame), 2500);
-}
-
-function sendFrameToServer(blob) {
-    const formData = new FormData();
-    formData.append('image', blob, 'frame.jpg');
-    fetch('/api/upload_frame', { method: 'POST', body: formData }).catch(console.error);
-}
-
-function setupAudio(stream) {
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = event => chunks.push(event.data);
-    mediaRecorder.onstop = () => processAudio();
-
-    const vad = vad.MicVAD.new({
-        onSpeechStart: () => startRecording(),
-        onSpeechEnd: () => stopRecording(),
+        const context = canvas.getContext('2d');
+        (function captureFrame() {
+            if (video.readyState === 4) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(blob => blob && fetch('/api/upload_frame', {
+                    method: 'POST',
+                    body: new FormData().append('image', blob, 'frame.jpg')
+                }), 'image/jpeg');
+            }
+            setTimeout(captureFrame, 2500);
+        })();
     });
 
-    vad.start();
-}
-
-function startRecording() {
-    if (!isProcessing && !audioPlaying) {
-        mediaRecorder.start();
-        statusDiv.innerHTML = "Listening...";
-    }
-}
-
-function stopRecording() {
-    if (!isProcessing && !audioPlaying) {
-        mediaRecorder.stop();
-        isProcessing = true;
-        statusDiv.innerHTML = "Processing...";
-    }
-}
-
-function processAudio() {
-    const blob = new Blob(chunks, { type: 'audio/wav' });
-    sendAudioToServer(blob);
-    chunks = [];
-}
-
-function sendAudioToServer(blob) {
-    const formData = new FormData();
-    formData.append('audio', blob, 'audio.wav');
-    fetch('/api/upload_audio', { method: 'POST', body: formData })
-        .then(() => {
-            statusDiv.innerHTML = "";
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.addEventListener('dataavailable', e => chunks.push(e.data));
+    mediaRecorder.addEventListener('stop', () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        chunks = [];
+        fetch('/api/upload_audio', {
+            method: 'POST',
+            body: new FormData().append('audio', blob, 'audio.wav')
+        }).then(() => {
+            statusDiv.textContent = "";
             isProcessing = false;
-            playAudioWhenReady();
-        })
-        .catch(console.error);
-}
+            (async function playAudioWhenReady() {
+                while (!(await fetch('/api/audio_status').then(res => res.json()).then(data => data.audio_ready))) {
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                audioPlaying = true;
+                const audio = new Audio(audioLink);
+                audio.addEventListener('ended', () => {
+                    fetch('/api/reset_audio_status', { method: 'POST' });
+                    audioPlaying = false;
+                });
+                audio.play().then(() => {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const analyser = audioCtx.createAnalyser();
+                    const source = audioCtx.createMediaElementSource(audio);
+                    source.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    (function analyseVolume() {
+                        analyser.getByteFrequencyData(dataArray);
+                        modelController.setMouthOpenY(dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255);
+                        if (!audio.paused) requestAnimationFrame(analyseVolume);
+                    })();
+                });
+            })();
+        });
+    });
 
-async function playAudioWhenReady() {
-    while (!(await checkAudioStatus())) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    audioPlaying = true;
-    const audio = new Audio(audioLink);
-    audio.play().then(() => setupAnalyser(audio));
-}
-
-async function checkAudioStatus() {
-    try {
-        const response = await fetch('/api/audio_status');
-        const data = await response.json();
-        return data.audio_ready;
-    } catch (error) {
-        console.error('Failed to check audio status:', error);
-        return false;
-    }
-}
-
-function setupAnalyser(audio) {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaElementSource(audio);
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-
-    function analyseVolume() {
-        analyser.getByteFrequencyData(dataArray);
-        const volume = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length / 255;
-        modelController.setMouthOpenY(volume);
-        if (!audio.paused) requestAnimationFrame(analyseVolume);
-    }
-
-    analyseVolume();
-    audio.onended = resetAudioState;
-}
-
-function resetAudioState() {
-    fetch('/api/reset_audio_status', { method: 'POST' });
-    audioPlaying = false;
-    if (!isProcessing) recognition.start();
-}
+    vad.MicVAD.new({
+        onSpeechStart: () => {
+            if (!isProcessing && !audioPlaying) {
+                mediaRecorder.start();
+                statusDiv.textContent = "Listening...";
+            }
+        },
+        onSpeechEnd: () => {
+            if (!isProcessing && !audioPlaying) {
+                mediaRecorder.stop();
+                isProcessing = true;
+                statusDiv.textContent = "Processing...";
+            }
+        }
+    }).start();
+})();
