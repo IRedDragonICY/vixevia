@@ -50,7 +50,8 @@ class Chatbot:
                            self.config.HARM_CATEGORIES]
         return generation_config, safety_settings
 
-    def _mask_api_key(self, key):
+    @staticmethod
+    def _mask_api_key(key):
         if len(key) > 6:
             return key[:-6] + '*' * 6
         return '*' * len(key)

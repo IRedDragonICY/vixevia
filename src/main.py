@@ -11,7 +11,6 @@ import cv2
 import numpy as np
 import uvicorn
 
-# Perbaikan import pyngrok
 from pyngrok import ngrok
 
 logging.disable(logging.CRITICAL)
