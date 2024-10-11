@@ -10,11 +10,9 @@ from Chatbot import Chatbot
 import cv2
 import numpy as np
 import uvicorn
-
 from pyngrok import ngrok
 
 logging.disable(logging.CRITICAL)
-
 
 class ServerApp:
     def __init__(self):
@@ -32,7 +30,6 @@ class ServerApp:
             allow_methods=["*"],
             allow_headers=["*"]
         )
-
         directories = {
             "/app": "app",
             "/assets": "app/assets",
@@ -43,7 +40,6 @@ class ServerApp:
         }
         for mount_point, directory in directories.items():
             self.app.mount(mount_point, StaticFiles(directory=directory), name=mount_point.strip("/"))
-
         self.app.get("/")(self.index)
         self.app.get("/api/audio_status")(self.get_audio_status)
         self.app.post("/api/reset_audio_status")(self.reset_audio_status)
@@ -88,20 +84,15 @@ class ServerApp:
     async def start_ngrok(self, api_key: str = Form(...)):
         if not self.check_internet_connection():
             return JSONResponse(content={"message": "Tidak ada koneksi internet."}, status_code=500)
-
         if self.ngrok_process:
-            return JSONResponse(content={"message": "Ngrok sudah berjalan.", "public_url": self.public_url},
-                                status_code=200)
-
+            return JSONResponse(content={"message": "Ngrok sudah berjalan.", "public_url": self.public_url}, status_code=200)
         try:
             ngrok.set_auth_token(api_key)
             tunnel = ngrok.connect(8000)
             self.public_url = tunnel.public_url
             self.ngrok_process = ngrok.get_ngrok_process()
             threading.Thread(target=self.ngrok_process.proc.wait).start()
-
-            return JSONResponse(content={"message": "Ngrok berhasil dimulai.", "public_url": self.public_url},
-                                status_code=200)
+            return JSONResponse(content={"message": "Ngrok berhasil dimulai.", "public_url": self.public_url}, status_code=200)
         except Exception as e:
             logging.error(f"Error starting ngrok: {e}")
             return JSONResponse(content={"message": f"Error starting ngrok: {str(e)}"}, status_code=500)
@@ -116,7 +107,6 @@ class ServerApp:
             except Exception as e:
                 logging.error(f"Error stopping ngrok: {e}")
                 return JSONResponse(content={"message": f"Error stopping ngrok: {str(e)}"}, status_code=500)
-
         return JSONResponse(content={"message": "Ngrok tidak berjalan."}, status_code=400)
 
     @staticmethod
@@ -134,7 +124,6 @@ class ServerApp:
     @staticmethod
     def open_browser():
         webbrowser.open_new("http://localhost:8000")
-
 
 if __name__ == "__main__":
     server_app = ServerApp()

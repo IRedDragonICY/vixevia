@@ -15,6 +15,7 @@ import ModelController from './model.js';
     let audioPlaying = false;
     let isProcessing = false;
     let chunks = [];
+    let audio;
 
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     const video = document.createElement('video');
@@ -28,10 +29,16 @@ import ModelController from './model.js';
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                canvas.toBlob(blob => blob && fetch('/api/upload_frame', {
-                    method: 'POST',
-                    body: new FormData().append('image', blob, 'frame.jpg')
-                }), 'image/jpeg');
+                canvas.toBlob(blob => {
+                    if (blob) {
+                        const formData = new FormData();
+                        formData.append('image', blob, 'frame.jpg');
+                        fetch('/api/upload_frame', {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
+                }, 'image/jpeg');
             }
             setTimeout(captureFrame, 2500);
         })();
@@ -42,9 +49,11 @@ import ModelController from './model.js';
     mediaRecorder.addEventListener('stop', () => {
         const blob = new Blob(chunks, { type: 'audio/wav' });
         chunks = [];
+        const formData = new FormData();
+        formData.append('audio', blob, 'audio.wav');
         fetch('/api/upload_audio', {
             method: 'POST',
-            body: new FormData().append('audio', blob, 'audio.wav')
+            body: formData
         }).then(() => {
             statusDiv.textContent = "";
             isProcessing = false;
@@ -53,7 +62,7 @@ import ModelController from './model.js';
                     await new Promise(r => setTimeout(r, 500));
                 }
                 audioPlaying = true;
-                const audio = new Audio(audioLink);
+                audio = new Audio(audioLink);
                 audio.addEventListener('ended', () => {
                     fetch('/api/reset_audio_status', { method: 'POST' });
                     audioPlaying = false;
@@ -77,13 +86,19 @@ import ModelController from './model.js';
 
     vad.MicVAD.new({
         onSpeechStart: () => {
-            if (!isProcessing && !audioPlaying) {
+            if (audioPlaying) {
+                audio.pause();
+                audio.currentTime = 0;
+                fetch('/api/reset_audio_status', { method: 'POST' });
+                audioPlaying = false;
+            }
+            if (!isProcessing && mediaRecorder.state !== 'recording') {
                 mediaRecorder.start();
                 statusDiv.textContent = "Listening...";
             }
         },
         onSpeechEnd: () => {
-            if (!isProcessing && !audioPlaying) {
+            if (mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
                 isProcessing = true;
                 statusDiv.textContent = "Processing...";
