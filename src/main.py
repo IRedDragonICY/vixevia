@@ -1,7 +1,6 @@
 import logging
 import threading
 import urllib.request
-import webbrowser
 from fastapi import FastAPI, File, UploadFile, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -119,12 +118,24 @@ class ServerApp:
             return False
 
     def run(self):
-        threading.Thread(target=self.open_browser).start()
+        self.start_ngrok_automatically()
         uvicorn.run(self.app, host="localhost", port=8000)
 
-    @staticmethod
-    def open_browser():
-        webbrowser.open_new("http://localhost:8000")
+    def start_ngrok_automatically(self):
+        api_key = self.chatbot.config.NGROK_API_KEY
+        if not self.check_internet_connection():
+            print("No internet connection.")
+            return
+        try:
+            ngrok.set_auth_token(api_key)
+            tunnel = ngrok.connect("8000")
+            self.public_url = tunnel.public_url
+            self.ngrok_process = ngrok.get_ngrok_process()
+            threading.Thread(target=self.ngrok_process.proc.wait).start()
+            print(f"Localhost URL: http://localhost:8000")
+            print(f"Public URL: {self.public_url}")
+        except Exception as e:
+            print(f"Error starting ngrok: {e}")
 
 if __name__ == "__main__":
     config = Config()

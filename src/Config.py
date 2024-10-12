@@ -20,6 +20,7 @@ class Config:
         self.HARM_CATEGORIES = self.config['HARM_CATEGORIES'].get('categories').split(',')
         self.FILES = self.FilesConfig(self.config['FILES'])
         self.API_KEYS = [key.strip() for key in self.config['API']['API_KEYS'].split(',') if key.strip()]
+        self.NGROK_API_KEY = self.config['NGROK'].get('api_key')
 
     @staticmethod
     def _create_default_config(config_file):
