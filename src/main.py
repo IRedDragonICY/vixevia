@@ -84,16 +84,16 @@ class ServerApp:
 
     async def start_ngrok(self, api_key: str = Form(...)):
         if not self.check_internet_connection():
-            return JSONResponse(content={"message": "Tidak ada koneksi internet."}, status_code=500)
+            return JSONResponse(content={"message": "No internet connection."}, status_code=500)
         if self.ngrok_process:
-            return JSONResponse(content={"message": "Ngrok sudah berjalan.", "public_url": self.public_url}, status_code=200)
+            return JSONResponse(content={"message": "Ngrok is already running.", "public_url": self.public_url}, status_code=200)
         try:
             ngrok.set_auth_token(api_key)
             tunnel = ngrok.connect("8000")
             self.public_url = tunnel.public_url
             self.ngrok_process = ngrok.get_ngrok_process()
             threading.Thread(target=self.ngrok_process.proc.wait).start()
-            return JSONResponse(content={"message": "Ngrok berhasil dimulai.", "public_url": self.public_url}, status_code=200)
+            return JSONResponse(content={"message": "Ngrok started successfully.", "public_url": self.public_url}, status_code=200)
         except Exception as e:
             logging.error(f"Error starting ngrok: {e}")
             return JSONResponse(content={"message": f"Error starting ngrok: {str(e)}"}, status_code=500)
@@ -104,11 +104,11 @@ class ServerApp:
                 ngrok.kill()
                 self.ngrok_process = None
                 self.public_url = None
-                return JSONResponse(content={"message": "Ngrok berhasil dihentikan."}, status_code=200)
+                return JSONResponse(content={"message": "Ngrok stopped successfully."}, status_code=200)
             except Exception as e:
                 logging.error(f"Error stopping ngrok: {e}")
                 return JSONResponse(content={"message": f"Error stopping ngrok: {str(e)}"}, status_code=500)
-        return JSONResponse(content={"message": "Ngrok tidak berjalan."}, status_code=400)
+        return JSONResponse(content={"message": "Ngrok is not running."}, status_code=400)
 
     @staticmethod
     def check_internet_connection():
