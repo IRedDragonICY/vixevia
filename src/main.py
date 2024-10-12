@@ -11,13 +11,14 @@ import cv2
 import numpy as np
 import uvicorn
 from pyngrok import ngrok
+from Config import Config
 
 logging.disable(logging.CRITICAL)
 
 class ServerApp:
-    def __init__(self):
+    def __init__(self, app_config):
         self.app = FastAPI()
-        self.chatbot = Chatbot()
+        self.chatbot = Chatbot(app_config)
         self.ngrok_process = None
         self.public_url = None
         self.setup_routes_and_middlewares()
@@ -88,7 +89,7 @@ class ServerApp:
             return JSONResponse(content={"message": "Ngrok sudah berjalan.", "public_url": self.public_url}, status_code=200)
         try:
             ngrok.set_auth_token(api_key)
-            tunnel = ngrok.connect(8000)
+            tunnel = ngrok.connect("8000")
             self.public_url = tunnel.public_url
             self.ngrok_process = ngrok.get_ngrok_process()
             threading.Thread(target=self.ngrok_process.proc.wait).start()
@@ -126,5 +127,6 @@ class ServerApp:
         webbrowser.open_new("http://localhost:8000")
 
 if __name__ == "__main__":
-    server_app = ServerApp()
+    config = Config()
+    server_app = ServerApp(config)
     server_app.run()

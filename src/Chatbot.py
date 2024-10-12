@@ -8,11 +8,10 @@ import google.generativeai as genai
 from google.generativeai.types import generation_types
 from gtts import gTTS
 from so_vits_svc_fork.inference.main import infer
-from Config import Config
 
 class Chatbot:
-    def __init__(self):
-        self.config = Config()
+    def __init__(self, config):
+        self.config = config
         self.api_keys = self.config.API_KEYS
         if not self.api_keys:
             raise ValueError("API key list is empty. Please provide at least one API key.")
