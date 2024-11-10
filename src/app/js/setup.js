@@ -22,6 +22,7 @@ import ModelController from './model.js';
     const video = document.createElement('video');
     video.srcObject = stream;
     video.autoplay = true;
+    video.muted = true;
     video.addEventListener('canplay', () => {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');

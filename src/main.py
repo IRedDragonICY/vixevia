@@ -5,6 +5,7 @@ from fastapi import FastAPI, File, UploadFile, Form, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from Chatbot import Chatbot
 import cv2
 import numpy as np
@@ -13,6 +14,17 @@ from pyngrok import ngrok
 from Config import Config
 
 logging.disable(logging.CRITICAL)
+
+class CachingStaticFiles(StaticFiles):
+    def __init__(self, *args, **kwargs):
+        self.headers = kwargs.pop('headers', {})
+        super().__init__(*args, **kwargs)
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        for key, value in self.headers.items():
+            response.headers[key] = value
+        return response
 
 class ServerApp:
     def __init__(self, app_config):
@@ -30,16 +42,27 @@ class ServerApp:
             allow_methods=["*"],
             allow_headers=["*"]
         )
+        self.app.add_middleware(GZipMiddleware, minimum_size=500)
         directories = {
             "/app": "app",
             "/assets": "app/assets",
             "/js": "app/js",
             "/temp": "temp",
-            "/model/live2d": "model/live2d",
             "/CSS": "app/CSS"
         }
+
         for mount_point, directory in directories.items():
             self.app.mount(mount_point, StaticFiles(directory=directory), name=mount_point.strip("/"))
+
+        self.app.mount(
+            "/model/live2d",
+            CachingStaticFiles(
+                directory="model/live2d",
+                headers={"Cache-Control": "public, max-age=31536000"}
+            ),
+            name="live2d"
+        )
+
         self.app.get("/")(self.index)
         self.app.get("/api/audio_status")(self.get_audio_status)
         self.app.post("/api/reset_audio_status")(self.reset_audio_status)

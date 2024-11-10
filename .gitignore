@@ -8,3 +8,4 @@
 /src/model/audio/audio.json
 /src/model/audio/audio.pth
 /src/config.ini
+/src/session.json
