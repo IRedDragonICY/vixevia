@@ -1,36 +1,48 @@
 import ModelController from './model.js';
 
-(async () => {
-    const app = new PIXI.Application({
-        view: document.getElementById("canvas"),
-        autoStart: true,
-        resizeTo: window
+const app = new PIXI.Application({
+    view: document.getElementById("canvas"),
+    autoStart: true,
+    resizeTo: window
+});
+const modelController = new ModelController(app, "../model/live2d/vixevia.model3.json");
+await modelController.loadModel();
+modelController.startBlinking();
+const statusDiv = document.getElementById('status');
+let isProcessing = false;
+let chunks = [];
+const audioLink = "/temp/response.wav";
+let audioPlaying = false;
+let audio;
+let currentStream;
+const preview = document.getElementById('cameraPreview');
+const cameraSelect = document.getElementById('cameraSelect');
+
+function stopCurrentStream() {
+    if (currentStream && currentStream.getTracks) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+}
+
+async function startStream(deviceId) {
+    stopCurrentStream();
+    currentStream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: { exact: deviceId } } : true,
+        audio: true
     });
-    const modelController = new ModelController(app, "../model/live2d/vixevia.model3.json");
-    await modelController.loadModel();
-    modelController.startBlinking();
-
-    const statusDiv = document.getElementById('status');
-    let isProcessing = false;
-    let chunks = [];
-    const audioLink = "/temp/response.wav";
-    let audioPlaying = false;
-    let audio;
-
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.autoplay = true;
-    video.muted = true;
-    video.addEventListener('canplay', () => {
+    preview.srcObject = currentStream;
+    const videoElement = document.createElement('video');
+    videoElement.srcObject = currentStream;
+    videoElement.autoplay = true;
+    videoElement.muted = true;
+    videoElement.addEventListener('playing', () => {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         const captureFrame = () => {
-            if (video.readyState === 4) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            if (videoElement.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
                 canvas.toBlob(blob => {
                     if (blob) {
                         const formData = new FormData();
@@ -43,8 +55,8 @@ import ModelController from './model.js';
         };
         captureFrame();
     });
-
-    const mediaRecorder = new MediaRecorder(stream);
+    videoElement.play();
+    const mediaRecorder = new MediaRecorder(currentStream);
     mediaRecorder.ondataavailable = e => chunks.push(e.data);
     mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/wav' });
@@ -58,45 +70,9 @@ import ModelController from './model.js';
                 checkAudioReady();
             });
     };
-
-    const checkAudioReady = async () => {
-        while (true) {
-            const response = await fetch('/api/audio_status');
-            const data = await response.json();
-            if (data.audio_ready) {
-                playBotAudio();
-                break;
-            }
-            await new Promise(r => setTimeout(r, 500));
-        }
-    };
-
-    const playBotAudio = () => {
-        audioPlaying = true;
-        audio = new Audio(audioLink);
-        audio.addEventListener('ended', () => {
-            audioPlaying = false;
-        });
-        audio.play().then(() => {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const analyser = audioCtx.createAnalyser();
-            const source = audioCtx.createMediaElementSource(audio);
-            source.connect(analyser);
-            analyser.connect(audioCtx.destination);
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            const analyseVolume = () => {
-                analyser.getByteFrequencyData(dataArray);
-                modelController.setMouthOpenY(dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255);
-                if (!audio.paused) requestAnimationFrame(analyseVolume);
-            };
-            analyseVolume();
-        });
-    };
-
     try {
         const MicVAD = window.vad.MicVAD;
         if (!MicVAD) throw new Error('MicVAD is not available');
-
         const micVAD = await MicVAD.new({
             onSpeechStart: () => {
                 if (audioPlaying) {
@@ -117,11 +93,61 @@ import ModelController from './model.js';
                 }
             }
         });
-
         if (typeof micVAD.start === 'function') {
             micVAD.start();
         }
     } catch (error) {
         console.error('Error initializing MicVAD:', error);
     }
-})();
+}
+
+function checkAudioReady() {
+    const interval = setInterval(async () => {
+        const response = await fetch('/api/audio_status');
+        const data = await response.json();
+        if (data.audio_ready) {
+            clearInterval(interval);
+            playBotAudio();
+        }
+    }, 500);
+}
+
+function playBotAudio() {
+    audioPlaying = true;
+    audio = new Audio(audioLink);
+    audio.addEventListener('ended', () => {
+        audioPlaying = false;
+    });
+    audio.play().then(() => {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const analyseVolume = () => {
+            analyser.getByteFrequencyData(dataArray);
+            modelController.setMouthOpenY(
+                dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255
+            );
+            if (!audio.paused) requestAnimationFrame(analyseVolume);
+        };
+        analyseVolume();
+    });
+}
+
+const devices = await navigator.mediaDevices.enumerateDevices();
+const videoDevices = devices.filter(d => d.kind === 'videoinput');
+videoDevices.forEach(d => {
+    const option = document.createElement('option');
+    option.value = d.deviceId;
+    option.text = d.label || `Camera ${cameraSelect.length + 1}`;
+    cameraSelect.appendChild(option);
+});
+cameraSelect.addEventListener('change', () => {
+    startStream(cameraSelect.value);
+});
+
+if (videoDevices.length > 0) {
+    startStream(videoDevices[0].deviceId);
+}

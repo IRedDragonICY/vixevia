@@ -25,7 +25,7 @@ class Config:
     @staticmethod
     def _create_default_config(config_file):
         default_config = '''[DEFAULT]
-MODEL_NAME = gemini-exp-1121
+MODEL_NAME = gemini-2.0-flash-exp
 BLOCK_NONE = BLOCK_NONE
 MAX_OUTPUT_TOKENS = 8192
 TOP_K = 1

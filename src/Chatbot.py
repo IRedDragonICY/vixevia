@@ -24,21 +24,27 @@ class Chatbot:
             max_output_tokens=self.config.MAX_OUTPUT_TOKENS,
         )
         self.safety_settings = [{"category": cat, "threshold": self.config.BLOCK_NONE} for cat in self.config.HARM_CATEGORIES]
+        self.frames = []
+        self.audio_ready = False
+        self.history = self._load_history()
+        self._initialize_conversation()
+
+    def _configure_genai(self):
+        genai.configure(api_key=self.api_keys[self.api_key_index])
+
+    def _rotate_api_key_and_reinitialize(self):
+        self.api_key_index = (self.api_key_index + 1) % len(self.api_keys)
         self._configure_genai()
+        self._initialize_model_and_conversation()
+
+    def _initialize_model_and_conversation(self):
         self.model = genai.GenerativeModel(
             model_name=self.config.MODEL_NAME,
             generation_config=self.generation_config,
             safety_settings=self.safety_settings,
             system_instruction=self.system_prompt
         )
-        self.history = self._load_history()
         self.convo = self.model.start_chat(history=self.history)
-        self._ensure_system_prompt()
-        self.frames = []
-        self.audio_ready = False
-
-    def _configure_genai(self):
-        genai.configure(api_key=self.api_keys[self.api_key_index])
 
     def _load_history(self):
         session_path = Path(self.config.FILES.SESSION)
@@ -46,10 +52,9 @@ class Chatbot:
             try:
                 with session_path.open('r', encoding='utf-8') as f:
                     history = json.load(f)
-                    if isinstance(history, list):
-                        return history
+                    return history if isinstance(history, list) else []
             except json.JSONDecodeError:
-                pass
+                return []
         return []
 
     def _save_history(self):
@@ -57,40 +62,42 @@ class Chatbot:
         with session_path.open('w', encoding='utf-8') as f:
             json.dump(self.history, f, ensure_ascii=False, indent=4)
 
+    def _initialize_conversation(self):
+        max_attempts = len(self.api_keys)
+        for _ in range(max_attempts):
+            try:
+                self._configure_genai()
+                self._initialize_model_and_conversation()
+                self._ensure_system_prompt()
+                return
+            except Exception as e:
+                if 'quota' in str(e).lower():
+                    self._rotate_api_key_and_reinitialize()
+                else:
+                    raise
+        raise Exception("All API keys have been exhausted.")
+
     def _ensure_system_prompt(self):
         if not self.history:
             system_message = {"role": "user", "parts": [{"text": self.system_prompt}]}
-            self.convo.send_message(system_message)
-            self.history.append(system_message)
-            self._save_history()
+            self._send_with_retry(system_message)
 
-    def _rotate_api_key(self):
-        self.api_key_index = (self.api_key_index + 1) % len(self.api_keys)
-        self._configure_genai()
-
-    def _handle_response(self, user_input):
+    def _send_with_retry(self, user_input):
         max_attempts = len(self.api_keys)
         for _ in range(max_attempts):
             try:
                 response_chunks = self.convo.send_message(user_input)
-                response = "".join(chunk.text for chunk in response_chunks)
-                break
+                return "".join(chunk.text for chunk in response_chunks)
             except Exception as e:
-                error_message = str(e).lower()
-                if any(keyword in error_message for keyword in ['429', 'quota', 'exhausted']):
-                    self._rotate_api_key()
-                    self.model = genai.GenerativeModel(
-                        model_name=self.config.MODEL_NAME,
-                        generation_config=self.generation_config,
-                        safety_settings=self.safety_settings,
-                        system_instruction=self.system_prompt
-                    )
+                if 'quota' in str(e).lower():
+                    self._rotate_api_key_and_reinitialize()
                 else:
-                    continue
-        else:
-            return
-        response = re.sub(r'\(.*?\)', '', response).strip()
+                    raise
+        raise Exception("All API keys have been exhausted during message handling.")
+
+    def _process_response(self, response):
         if response:
+            response = re.sub(r'\(.*?\)', '', response).strip()
             response_mp3_path = Path(self.config.FILES.RESPONSE_MP3)
             response_mp3_path.unlink(missing_ok=True)
             gTTS(text=response, lang='id').save(response_mp3_path)
@@ -105,6 +112,10 @@ class Chatbot:
                 transpose=7,
             )
             self.audio_ready = True
+
+    def _handle_response(self, user_input):
+        response = self._send_with_retry(user_input)
+        self._process_response(response)
         self.history.append(user_input)
         self.history.append({"role": "model", "parts": [{"text": response}]})
         self._save_history()
